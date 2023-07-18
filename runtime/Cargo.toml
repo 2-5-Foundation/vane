@@ -1,11 +1,11 @@
 [package]
-authors = ["Anonymous"]
-description = "A Cumulus FRAME-based Substrate Runtime, ready for hacking together a parachain."
+authors = ["Mrisho Lukamba & Evolution"]
+description = ""
 edition = "2021"
-homepage = "https://substrate.io"
+homepage = ""
 license = "Unlicense"
-name = "parachain-template-runtime"
-repository = "https://github.com/paritytech/extended-parachain-template/"
+name = "vane-runtime"
+repository = ""
 version = "0.1.0"
 
 [package.metadata.docs.rs]
@@ -22,7 +22,7 @@ scale-info = { version = "2.5.0", default-features = false, features = ["derive"
 smallvec = "1.10.0"
 
 # Local
-pallet-motion = {path = "../pallets/motion", default-features = false}
+
 
 # Substrate
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.42" }
@@ -103,7 +103,6 @@ std = [
 	"pallet-balances/std",
 	"pallet-collective/std",
 	"pallet-collator-selection/std",
-	"pallet-motion/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
@@ -141,7 +140,6 @@ runtime-benchmarks = [
   "pallet-balances/runtime-benchmarks",
   "pallet-collator-selection/runtime-benchmarks",
   "pallet-collective/runtime-benchmarks",
-  "pallet-motion/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
   "pallet-utility/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
@@ -166,7 +164,6 @@ try-runtime = [
   "pallet-balances/try-runtime",
   "pallet-collator-selection/try-runtime",
   "pallet-collective/try-runtime",
-  "pallet-motion/try-runtime",
   "pallet-session/try-runtime",
   "pallet-sudo/try-runtime",
   "pallet-timestamp/try-runtime",
