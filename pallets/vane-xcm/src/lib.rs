@@ -15,7 +15,7 @@ mod pallet{
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config{
-		type Currency: Currency<Self::AccountId>;
+	
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 	}
 
@@ -23,7 +23,7 @@ mod pallet{
 
 
 	#[pallet::pallet]
-	pub struct Pallet<T>(PhantomData<T>);
+	pub struct Pallet<T>(_);
 
 	#[pallet::error]
 	pub enum Error<T>{

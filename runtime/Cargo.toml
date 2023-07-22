@@ -22,7 +22,7 @@ scale-info = { version = "2.5.0", default-features = false, features = ["derive"
 smallvec = "1.10.0"
 
 # Local
-#vane-register = { version = "1.0.0-dev", default-features = false, path = "../pallets/vane-register" }
+vane-register = { version = "1.0.0-dev", default-features = false, path = "../pallets/vane-register" }
 
 # Substrate
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.42" }
@@ -114,7 +114,7 @@ std = [
 	"polkadot-parachain/std",
 	"polkadot-runtime-common/std",
 	# Vane pallets
-	#"vane-register/std",
+	"vane-register/std",
 	#----------------------#
 	"sp-api/std",
 	"sp-block-builder/std",
