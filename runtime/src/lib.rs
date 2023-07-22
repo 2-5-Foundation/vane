@@ -23,6 +23,11 @@ use sp_runtime::{
 	ApplyExtrinsicResult,
 };
 
+/// Import Custom pallets.
+use vane_order;
+use vane_payment;
+pub use vane_wallet_less;
+
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
