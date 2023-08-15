@@ -1,0 +1,39 @@
+{
+	"relaychain": {
+		"bin": "../bin/polkadot",
+		"chain": "rococo-local",
+		"nodes": [
+			{
+				"name": "alice",
+				"wsPort": 9944,
+				"port": 30444
+			},
+			{
+				"name": "bob",
+				"wsPort": 9955,
+				"port": 30555
+			}
+		]
+	},
+	"parachains": [
+		{
+			"bin": "../bin/vane-node",
+			"id": "2000",
+			"balance": "1000000000000000000000",
+			"nodes": [
+				{
+					"wsPort": 8844,
+					"name": "alice",
+					"port": 31200,
+					"flags": [
+						"--force-authoring",
+						"--",
+						"--execution=wasm"
+					]
+				}
+			]
+		}
+	],
+	"types": {
+	}
+}

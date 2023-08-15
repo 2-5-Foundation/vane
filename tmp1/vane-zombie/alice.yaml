@@ -1,0 +1,40 @@
+metadata:
+  name: alice
+  namespace: zombie-72cc6fa8312fad313127ecc79fda1d33
+  labels:
+    zombie-role: node
+    app: zombienet
+    zombie-ns: zombie-72cc6fa8312fad313127ecc79fda1d33
+    name: zombie-72cc6fa8312fad313127ecc79fda1d33
+    instance: alice
+spec:
+  cfgPath: tmp1/vane-zombie/alice/cfg
+  dataPath: tmp1/vane-zombie/alice/data
+  ports:
+    - containerPort: 9615
+      name: prometheus
+      flag: --prometheus-port
+      hostPort: 52097
+    - containerPort: 9933
+      name: rpc
+      flag: --rpc-port
+      hostPort: 52096
+    - containerPort: 9944
+      name: rpc-ws
+      flag: --ws-port
+      hostPort: 52095
+    - containerPort: 30333
+      name: p2p
+      flag: --port
+      hostPort: 52094
+  command:
+    - ../bin/polkadot --chain tmp1/vane-zombie/alice/cfg/polkadot.json --name
+      alice --rpc-cors all --unsafe-rpc-external --rpc-methods unsafe --no-mdns
+      --node-key
+      2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90
+      --no-telemetry --prometheus-external --validator --prometheus-port 52097
+      --rpc-port 52095 --listen-addr /ip4/0.0.0.0/tcp/52094/ws --base-path
+      tmp1/vane-zombie/alice/data
+  env:
+    COLORBT_SHOW_HIDDEN: "1"
+    RUST_BACKTRACE: FULL
