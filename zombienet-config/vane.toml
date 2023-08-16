@@ -15,26 +15,26 @@ bootnode = false
   name = "bob"
   validator = true
 
-[[parachains]]
-id = 2000
-chain = "vane"
-addToGenesis = false
-cumulus_based = true
-chain_spec_path = "tmp1/vane.json"
-bootnode = false
-onboard_as_parachain = true
-register_para = true
+# [[parachains]]
+# id = 2000
+# chain = "vane"
+# addToGenesis = false
+# cumulus_based = true
+# chain_spec_path = "tmp1/vane.json"
+# bootnode = false
+# onboard_as_parachain = true
+# register_para = true
 
-  [[parachains.collator_groups]]
-    count = 1
-     onboard_as_parachain = true
-     register_para = true
+#   [[parachains.collator_groups]]
+#     count = 1
+#      onboard_as_parachain = true
+#      register_para = true
 
-    [parachains.collator_groups.collator]
-      name = "vane-collator1"
-      command = "./target/release/vane-node"
-      genesis_wasm_path = "tmp1/vane-wasm"
-      genesis_state_path = "tmp1/vane-state"
+#     [parachains.collator_groups.collator]
+#       name = "vane-collator1"
+#       command = "./target/release/vane-node"
+#       genesis_wasm_path = "tmp1/vane-wasm"
+#       genesis_state_path = "tmp1/vane-state"
 
   # [parachains.collator]
   # name = "vane-collator1"

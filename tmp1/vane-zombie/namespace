@@ -1,7 +1,0 @@
-{
-    "apiVersion": "v1",
-    "kind": "Namespace",
-    "metadata": {
-        "name": "zombie-72cc6fa8312fad313127ecc79fda1d33"
-    }
-}
