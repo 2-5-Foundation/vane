@@ -3,12 +3,12 @@
 use codec::{Decode, Encode};
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{EnsureOrigin, EnsureOriginWithArg, Everything, EverythingBut, Nothing},
+	traits::{EnsureOrigin, EnsureOriginWithArg, Everything, EverythingBut, Nothing, ContainsPair},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 };
 
 use frame_system::EnsureRoot;
-use sp_core::{ConstU32, H256};
+use sp_core::{ConstU32, H256, Get};
 use sp_runtime::{
 	testing::Header,
 	traits::{Hash, IdentityLookup},
@@ -31,13 +31,15 @@ use xcm_builder::{
 	SovereignSignedViaLocation,
 };
 use xcm_executor::{
-	traits::{Convert, JustTry},
+	traits::JustTry,
 	Config, XcmExecutor,
 };
+use xcm_simulator::PhantomData;
 
 
 // `EnsureOriginWithArg` impl for `CreateOrigin` which allows only XCM origins
 // which are locations containing the class location.
+use xcm_executor::traits::ConvertLocation;
 pub struct ForeignCreators;
 impl EnsureOriginWithArg<RuntimeOrigin, MultiLocation> for ForeignCreators {
 	type Success = AccountId;
@@ -50,7 +52,7 @@ impl EnsureOriginWithArg<RuntimeOrigin, MultiLocation> for ForeignCreators {
 		if !a.starts_with(&origin_location) {
 			return Err(o)
 		}
-		SovereignAccountOf::convert(origin_location).map_err(|_| o)
+		SovereignAccountOf::convert_location(&origin_location).ok_or(o)
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -112,13 +114,12 @@ parameter_types! {
 impl frame_system::Config for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
 	type Hash = H256;
 	type Hashing = ::sp_runtime::traits::BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
+	type Block = Block;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type BlockWeights = ();
@@ -152,14 +153,16 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = ();
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
-	type HoldIdentifier = ();
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type FreezeIdentifier = ();
 	type MaxHolds = ConstU32<0>;
 	type MaxFreezes = ConstU32<0>;
 }
 
+
 pub type XcmRouter = super::ParachainXcmRouter<MsgQueue>;
 pub type Barrier = AllowUnpaidExecutionFrom<Everything>;
+
 
 pub struct XcmConfig;
 impl Config for XcmConfig {
@@ -175,7 +178,7 @@ impl Config for XcmConfig {
 	type Trader = FixedRateOfFungible<KsmPerSecondPerByte, ()>;
 	type ResponseHandler = ();
 	type AssetTrap = ();
-	type AssetLocker = ();
+	type AssetLocker = PolkadotXcm;
 	type AssetExchanger = ();
 	type AssetClaims = ();
 	type SubscriptionService = ();
@@ -186,8 +189,8 @@ impl Config for XcmConfig {
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
 	type SafeCallFilter = Everything;
+	type Aliasers = Nothing;
 }
-
 
 
 #[frame_support::pallet]
@@ -341,6 +344,23 @@ impl mock_msg_queue::Config for Runtime {
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
+
+pub struct TrustedLockerCase<T>(PhantomData<T>);
+impl<T: Get<(MultiLocation, MultiAssetFilter)>> ContainsPair<MultiLocation, MultiAsset>
+	for TrustedLockerCase<T>
+{
+	fn contains(origin: &MultiLocation, asset: &MultiAsset) -> bool {
+		let (o, a) = T::get();
+		a.matches(asset) && &o == origin
+	}
+}
+
+parameter_types! {
+	pub RelayTokenForRelay: (MultiLocation, MultiAssetFilter) = (Parent.into(), Wild(AllOf { id: Concrete(Parent.into()), fun: WildFungible }));
+}
+
+pub type TrustedLockers = TrustedLockerCase<RelayTokenForRelay>;
+
 impl pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
@@ -358,9 +378,11 @@ impl pallet_xcm::Config for Runtime {
 	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
 	type Currency = Balances;
 	type CurrencyMatcher = ();
-	type TrustedLockers = ();
+	type TrustedLockers = TrustedLockers;
 	type SovereignAccountOf = LocationToAccountId;
 	type MaxLockers = ConstU32<8>;
+	type MaxRemoteLockConsumers = ConstU32<0>;
+	type RemoteLockConsumerIdentifier = ();
 	type WeightInfo = pallet_xcm::TestWeightInfo;
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
@@ -393,20 +415,17 @@ type Block = frame_system::mocking::MockBlock<Runtime>;
 
 // Construct Runtime
 construct_runtime!(
-	pub enum Runtime where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Runtime
 	{
-		System: frame_system::{Pallet, Call, Storage, Config, Event<T>},
+		System: frame_system::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		MsgQueue: mock_msg_queue::{Pallet, Storage, Event<T>},
 		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin},
-
-        // Custom pallets
-        VaneRegister: vane_register,
-        VanePayment: vane_payment,
-        VaneOrder: vane_order,
-        VaneXcm: vane_xcm
+		VaneRegister: vane_register,
+		VanePayment: vane_payment,
+		VaneOrder: vane_order,
+		VaneXcm: vane_xcm
 	}
 );
+
+

@@ -1,4 +1,18 @@
+// Copyright (C) Parity Technologies (UK) Ltd.
+// This file is part of Polkadot.
 
+// Polkadot is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Polkadot is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Relay chain runtime mock.
 
@@ -10,7 +24,7 @@ use frame_support::{
 
 use frame_system::EnsureRoot;
 use sp_core::{ConstU32, H256};
-use sp_runtime::{testing::Header, traits::IdentityLookup, AccountId32};
+use sp_runtime::{traits::IdentityLookup, AccountId32};
 
 use polkadot_parachain::primitives::Id as ParaId;
 use polkadot_runtime_parachains::{
@@ -38,13 +52,12 @@ parameter_types! {
 impl frame_system::Config for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
 	type Hash = H256;
 	type Hashing = ::sp_runtime::traits::BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
+	type Block = Block;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type BlockWeights = ();
@@ -78,13 +91,11 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = ();
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
-	type HoldIdentifier = ();
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type FreezeIdentifier = ();
 	type MaxHolds = ConstU32<0>;
 	type MaxFreezes = ConstU32<0>;
 }
-
-
 
 impl shared::Config for Runtime {}
 
@@ -107,8 +118,8 @@ pub type LocationToAccountId = (
 );
 
 pub type LocalAssetTransactor = (
-	XcmCurrencyAdapter<Balances, IsConcrete<TokenLocation>, LocationToAccountId, AccountId, ()>,
-
+	XcmCurrencyAdapter<Balances, IsConcrete<TokenLocation>, LocationToAccountId, AccountId, ()>
+	
 );
 
 type LocalOriginConverter = (
@@ -154,6 +165,7 @@ impl Config for XcmConfig {
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
 	type SafeCallFilter = Everything;
+	type Aliasers = Nothing;
 }
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
@@ -184,6 +196,8 @@ impl pallet_xcm::Config for Runtime {
 	type TrustedLockers = ();
 	type SovereignAccountOf = LocationToAccountId;
 	type MaxLockers = ConstU32<8>;
+	type MaxRemoteLockConsumers = ConstU32<0>;
+	type RemoteLockConsumerIdentifier = ();
 	type WeightInfo = pallet_xcm::TestWeightInfo;
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
@@ -196,7 +210,6 @@ parameter_types! {
 
 impl origin::Config for Runtime {}
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
 type Block = frame_system::mocking::MockBlock<Runtime>;
 
 parameter_types! {
@@ -216,7 +229,6 @@ impl ProcessMessage for MessageProcessor {
 		origin: Self::Origin,
 		meter: &mut WeightMeter,
 		id: &mut [u8; 32],
-		
 	) -> Result<bool, ProcessMessageError> {
 		let para = match origin {
 			AggregateMessageOrigin::Ump(UmpQueueId::Para(para)) => para,
@@ -237,16 +249,14 @@ impl pallet_message_queue::Config for Runtime {
 	type ServiceWeight = MessageQueueServiceWeight;
 	type MessageProcessor = MessageProcessor;
 	type QueueChangeHandler = ();
+	type QueuePausedQuery = ();
 	type WeightInfo = ();
 }
 
 construct_runtime!(
-	pub enum Runtime where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+	pub enum Runtime
 	{
-		System: frame_system::{Pallet, Call, Storage, Config, Event<T>},
+		System: frame_system::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		ParasOrigin: origin::{Pallet, Origin},
 		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin},

@@ -6,8 +6,8 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-// #[cfg(test)]
-// mod xcm_sim_testing;
+#[cfg(test)]
+mod xcm_sim_testing;
 
 
 mod currency;
