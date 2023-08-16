@@ -84,26 +84,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = ConstU32<0>;
 }
 
-impl pallet_uniques::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type CollectionId = u32;
-	type ItemId = u32;
-	type Currency = Balances;
-	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<AccountId>>;
-	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
-	type CollectionDeposit = frame_support::traits::ConstU128<1_000>;
-	type ItemDeposit = frame_support::traits::ConstU128<1_000>;
-	type MetadataDepositBase = frame_support::traits::ConstU128<1_000>;
-	type AttributeDepositBase = frame_support::traits::ConstU128<1_000>;
-	type DepositPerByte = frame_support::traits::ConstU128<1>;
-	type StringLimit = ConstU32<64>;
-	type KeyLimit = ConstU32<64>;
-	type ValueLimit = ConstU32<128>;
-	type Locker = ();
-	type WeightInfo = ();
-	#[cfg(feature = "runtime-benchmarks")]
-	type Helper = ();
-}
+
 
 impl shared::Config for Runtime {}
 
@@ -127,14 +108,7 @@ pub type LocationToAccountId = (
 
 pub type LocalAssetTransactor = (
 	XcmCurrencyAdapter<Balances, IsConcrete<TokenLocation>, LocationToAccountId, AccountId, ()>,
-	NonFungiblesAdapter<
-		Uniques,
-		ConvertedConcreteId<u32, u32, AsPrefixedGeneralIndex<(), u32, JustTry>, JustTry>,
-		LocationToAccountId,
-		AccountId,
-		NoChecking,
-		(),
-	>,
+
 );
 
 type LocalOriginConverter = (
@@ -210,8 +184,6 @@ impl pallet_xcm::Config for Runtime {
 	type TrustedLockers = ();
 	type SovereignAccountOf = LocationToAccountId;
 	type MaxLockers = ConstU32<8>;
-	type MaxRemoteLockConsumers = ConstU32<0>;
-	type RemoteLockConsumerIdentifier = ();
 	type WeightInfo = pallet_xcm::TestWeightInfo;
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
@@ -244,6 +216,7 @@ impl ProcessMessage for MessageProcessor {
 		origin: Self::Origin,
 		meter: &mut WeightMeter,
 		id: &mut [u8; 32],
+		
 	) -> Result<bool, ProcessMessageError> {
 		let para = match origin {
 			AggregateMessageOrigin::Ump(UmpQueueId::Para(para)) => para,
@@ -277,7 +250,6 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		ParasOrigin: origin::{Pallet, Origin},
 		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin},
-		Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>},
 		MessageQueue: pallet_message_queue::{Pallet, Event<T>},
 	}
 );

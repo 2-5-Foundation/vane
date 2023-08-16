@@ -47,11 +47,11 @@ mod pallet{
 	pub enum Event<T: Config>{
 		PayerRegistered{
 			id: T::AccountId,
-			time: T::BlockNumber
+			time: BlockNumberFor<T>
 		},
 		PayeeRegistered {
 			id: T::AccountId,
-			time: T::BlockNumber
+			time: BlockNumberFor<T>
 		}
 	}
 

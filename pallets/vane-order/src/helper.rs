@@ -29,8 +29,8 @@ pub mod utils {
 		pub payee_id: T::AccountId,
 		pub payer_id: T::AccountId,
 		pub amount: BalanceOf<T>,
-		pub ordered_time: T::BlockNumber,
-		pub expected_time: T::BlockNumber,
+		pub ordered_time: BlockNumberFor<T>,
+		pub expected_time: BlockNumberFor<T>,
 		pub status: OrderStatus,
 	}
 
@@ -41,8 +41,8 @@ pub mod utils {
 			amount: BalanceOf<T>,
 			payee_id: T::AccountId,
 			payer_id: T::AccountId,
-			order_time: T::BlockNumber,
-			expect_time: T::BlockNumber,
+			order_time: BlockNumberFor<T>,
+			expect_time: BlockNumberFor<T>,
 		) -> Self {
 			Self {
 				order_no,

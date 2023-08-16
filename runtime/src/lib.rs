@@ -6,9 +6,15 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+// #[cfg(test)]
+// mod xcm_sim_testing;
+
+
 mod currency;
 mod weights;
 pub mod xcm_config;
+
+
 
 pub use currency::{deposit, EXISTENTIAL_DEPOSIT, MICROUNIT, MILLIUNIT, UNIT};
 pub use fee::WeightToFee;
@@ -28,8 +34,8 @@ use sp_runtime::{
 use vane_order;
 use vane_payment;
 use vane_wallet_less;
-use orml_xtokens;
-use orml_asset_registry;
+// use orml_xtokens;
+// use orml_asset_registry;
 use orml_traits::{self, location::AbsoluteReserveProvider};
 use vane_xcm;
 
@@ -68,7 +74,7 @@ use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 //https://github.com/paritytech/cumulus/tree/master/parachains/common
 pub use parachains_common::{
 	impls::{AccountIdOf, DealWithFees},
-	Balance, BlockNumber, Hash, Index, Signature,
+	Balance, BlockNumber, Hash, Signature,
 };
 
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
@@ -304,7 +310,8 @@ parameter_types! {
 	pub const SS58Prefix: u16 = 42;
 }
 
-// Configure FRAME pallets to include in runtime.
+/// Index of a transaction in the chain.
+pub type Nonce = u32;
 
 impl frame_system::Config for Runtime {
 	/// The identifier used to distinguish between accounts.
@@ -314,15 +321,13 @@ impl frame_system::Config for Runtime {
 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
 	type Lookup = AccountIdLookup<AccountId, ()>;
 	/// The index type for storing how many extrinsics an account has signed.
-	type Index = Index;
-	/// The index type for blocks.
-	type BlockNumber = BlockNumber;
+	type Nonce = Nonce;
 	/// The type for hashing blocks and tries.
 	type Hash = Hash;
 	/// The hashing algorithm used.
 	type Hashing = BlakeTwo256;
-	/// The header type.
-	type Header = generic::Header<BlockNumber, BlakeTwo256>;
+	/// The block type.
+	type Block = Block;
 	/// The ubiquitous event type.
 	type RuntimeEvent = RuntimeEvent;
 	/// The ubiquitous origin type.
@@ -377,22 +382,24 @@ parameter_types! {
 	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 }
 
+use sp_core::ConstU128;
+
 impl pallet_balances::Config for Runtime {
 	type MaxLocks = ConstU32<50>;
+	type MaxReserves = ();
+	type ReserveIdentifier = [u8; 8];
 	/// The type for recording an account's balance.
 	type Balance = Balance;
 	/// The ubiquitous event type.
 	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();
-	type ExistentialDeposit = ExistentialDeposit;
+	type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
 	type AccountStore = System;
-	type MaxReserves = ConstU32<50>;
-	type MaxHolds = ConstU32<0>;
-	type MaxFreezes = ConstU32<0>;
-	type HoldIdentifier = ();
-	type FreezeIdentifier = ();
-	type ReserveIdentifier = [u8; 8];
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type RuntimeHoldReason = ();
+	type MaxHolds = ();
 }
 
 parameter_types! {
@@ -445,7 +452,6 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type ReservedXcmpWeight = ReservedXcmpWeight;
 	type CheckAssociatedRelayNumber = RelayNumberStrictlyIncreases;
 }
-
 impl parachain_info::Config for Runtime {}
 
 impl cumulus_pallet_aura_ext::Config for Runtime {}
@@ -487,11 +493,12 @@ impl pallet_session::Config for Runtime {
 	type WeightInfo = ();
 }
 
+
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
+	type WeightInfo = ();
 }
-
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 7 * DAYS;
 	pub const CouncilMaxProposals: u32 = 10;
@@ -512,13 +519,15 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
-
+use sp_core::ConstBool;
 
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
 	type MaxAuthorities = ConstU32<100_000>;
+	type AllowMultipleBlocksPerSlot = ConstBool<false>;
 }
+
 
 parameter_types! {
 	pub const PotId: PalletId = PalletId(*b"PotStake");
@@ -536,14 +545,15 @@ pub type CollatorSelectionUpdateOrigin = EitherOfDiverse<
 	EnsureXcm<IsVoiceOfBody<RelayLocation, StakingAdminBodyId>>,
 >;
 
+
 impl pallet_collator_selection::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type UpdateOrigin = CollatorSelectionUpdateOrigin;
 	type PotId = PotId;
-	type MaxCandidates = MaxCandidates;
-	type MinCandidates = MinCandidates;
-	type MaxInvulnerables = MaxInvulnerables;
+	type MaxCandidates = ConstU32<100>;
+	type MinEligibleCollators = ConstU32<4>;
+	type MaxInvulnerables = ConstU32<20>;
 	// should be a multiple of session or things will get inconsistent
 	type KickThreshold = Period;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
@@ -551,7 +561,6 @@ impl pallet_collator_selection::Config for Runtime {
 	type ValidatorRegistration = Session;
 	type WeightInfo = ();
 }
-
 // Custom pallets Implementation
 impl vane_order::Config for Runtime {
 	type Currency = Balances;
@@ -593,8 +602,9 @@ parameter_types! {
 
 parameter_types! {
 	// One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
-	pub UnitWeightCost: Weight = Weight::from_ref_time(1_000_000_000);
+	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
 	pub const MaxInstructions: u32 = 100;
+	pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
 orml_traits::parameter_type_with_key! {
@@ -604,82 +614,82 @@ orml_traits::parameter_type_with_key! {
 }
 
 
-pub type VaneAssetRegistry<T> = orml_asset_registry::Pallet<T>;
-pub struct TokenIdConvert;
-impl Convert<u32, Option<MultiLocation>> for TokenIdConvert {
-	fn convert(id: u32) -> Option<MultiLocation> {
-		VaneAssetRegistry::<Runtime>::multilocation(&id).unwrap_or(None)
-	}
-}
+// pub type VaneAssetRegistry<T> = orml_asset_registry::Pallet<T>;
+// pub struct TokenIdConvert;
+// impl Convert<u32, Option<MultiLocation>> for TokenIdConvert {
+// 	fn convert(id: u32) -> Option<MultiLocation> {
+// 		VaneAssetRegistry::<Runtime>::multilocation(&id).unwrap_or(None)
+// 	}
+// }
 
-impl Convert<MultiLocation, Option<u32>> for TokenIdConvert {
-	fn convert(location: MultiLocation) -> Option<u32> {
-		match location {
+// impl Convert<MultiLocation, Option<u32>> for TokenIdConvert {
+// 	fn convert(location: MultiLocation) -> Option<u32> {
+// 		match location {
 			
-			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
-				if para_id == u32::from(ParachainInfo::parachain_id()) =>
-				None, // No Native Token
-			_ => VaneAssetRegistry::<Runtime>::location_to_asset_id(location.clone()),
-		}
-	}
-}
+// 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
+// 				if para_id == u32::from(ParachainInfo::parachain_id()) =>
+// 				None, // No Native Token
+// 			_ => VaneAssetRegistry::<Runtime>::location_to_asset_id(location.clone()),
+// 		}
+// 	}
+// }
 
-impl Convert<MultiAsset, Option<u32>> for TokenIdConvert {
-	fn convert(asset: MultiAsset) -> Option<u32> {
-		if let MultiAsset { id: Concrete(location), .. } = asset {
-			Self::convert(location)
-		} else {
-			None
-		}
-	}
-}
+// impl Convert<MultiAsset, Option<u32>> for TokenIdConvert {
+// 	fn convert(asset: MultiAsset) -> Option<u32> {
+// 		if let MultiAsset { id: Concrete(location), .. } = asset {
+// 			Self::convert(location)
+// 		} else {
+// 			None
+// 		}
+// 	}
+// }
 
-pub struct AccountIdToMultiLocation;
-impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
-	fn convert(account: AccountId) -> MultiLocation {
-		X1(AccountId32 { network: None, id: account.into() }).into()
-	}
-}
+// pub struct AccountIdToMultiLocation;
+// impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
+// 	fn convert(account: AccountId) -> MultiLocation {
+// 		X1(AccountId32 { network: None, id: account.into() }).into()
+// 	}
+// }
 
-pub struct AssetAuthority;
-impl EnsureOriginWithArg<RuntimeOrigin, Option<u32>> for AssetAuthority {
-	type Success = ();
+// pub struct AssetAuthority;
+// impl EnsureOriginWithArg<RuntimeOrigin, Option<u32>> for AssetAuthority {
+// 	type Success = ();
 
-	fn try_origin(
-		origin: RuntimeOrigin,
-		_asset_id: &Option<u32>,
-	) -> Result<Self::Success, RuntimeOrigin> {
-		Ok(())
-	}
+// 	fn try_origin(
+// 		origin: RuntimeOrigin,
+// 		_asset_id: &Option<u32>,
+// 	) -> Result<Self::Success, RuntimeOrigin> {
+// 		Ok(())
+// 	}
 
-}
+// }
 
-impl orml_asset_registry::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type CustomMetadata = ();
-	type AssetId = u32;
-	type AuthorityOrigin = AssetAuthority; // For now is anyone , later will make this to be more rigid
-	type AssetProcessor = orml_asset_registry::SequentialId<Runtime>;
-	type Balance = Balance;
-	type WeightInfo = weights::vane_asset_weights::SubstrateWeight<Runtime>;
-}
+// impl orml_asset_registry::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type CustomMetadata = ();
+// 	type AssetId = u32;
+// 	type AuthorityOrigin = AssetAuthority; // For now is anyone , later will make this to be more rigid
+// 	type AssetProcessor = orml_asset_registry::SequentialId<Runtime>;
+// 	type Balance = Balance;
+// 	type WeightInfo = weights::vane_asset_weights::SubstrateWeight<Runtime>;
+// }
 
-impl orml_xtokens::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type CurrencyId = u32;
-	type SelfLocation = SelfLocation;
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>; // We are not focused on executing XCM locally for now
-	type CurrencyIdConvert = TokenIdConvert;
-	type AccountIdToMultiLocation = AccountIdToMultiLocation;
-	type BaseXcmWeight = ();
-	type MinXcmFee = ParachainMinFee;
-	type UniversalLocation = UniversalLocation;
-	type MaxAssetsForTransfer = MaxAssetsForTransfer;
-	type MultiLocationsFilter = ();
-	type ReserveProvider = AbsoluteReserveProvider; // Not using reserve transfer ATM
-	type XcmExecutor = XcmExecutor<XcmConfig>;
-}
+// impl orml_xtokens::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type Balance = Balance;
+// 	type CurrencyId = u32;
+// 	type SelfLocation = SelfLocation;
+// 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>; // We are not focused on executing XCM locally for now
+// 	type CurrencyIdConvert = TokenIdConvert;
+// 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
+// 	type BaseXcmWeight = ();
+// 	type MinXcmFee = ParachainMinFee;
+// 	type UniversalLocation = UniversalLocation;
+// 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
+// 	type MultiLocationsFilter = ();
+// 	type ReserveProvider = AbsoluteReserveProvider; // Not using reserve transfer ATM
+// 	type XcmExecutor = XcmExecutor<XcmConfig>;
+// }
 
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -726,8 +736,8 @@ construct_runtime!(
 		VaneXcm: vane_xcm = 53,
 
 		// ORML Pallets
-		VaneAssets: orml_asset_registry = 60,
-		VaneXtokens: orml_xtokens = 61,
+		// VaneAssets: orml_asset_registry = 60,
+		// VaneXtokens: orml_xtokens = 61,
 
 	}
 );
@@ -831,8 +841,8 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
-		fn account_nonce(account: AccountId) -> Index {
+	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Nonce> for Runtime {
+		fn account_nonce(account: AccountId) -> Nonce {
 			System::account_nonce(account)
 		}
 	}

@@ -10,8 +10,8 @@ mod helper;
 #[frame_support::pallet]
 mod pallet{
 	use frame_support::Blake2_128;
-	use frame_support::pallet_prelude::DispatchResult;
-	use frame_system::pallet_prelude::OriginFor;
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::*;
 	use pallet_xcm;
 	use vane_payment;
 	use crate::helper;
@@ -50,24 +50,24 @@ mod pallet{
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config>{
 		MultisigAccountCreated{
-			time: T::BlockNumber,
+			time: BlockNumberFor<T>,
 			id: T::AccountId,
 			// amount
 		},
 		DotXcmTransferInitiated {
-			time: T::BlockNumber,
+			time: BlockNumberFor<T>,
 			sender: T::AccountId,
 			multi_id: T::AccountId
 			// TXN HASH for Dot side txn_hash: T::Hash,
 		},
 		PayerAddressConfirmedXcm {
 			account_id: T::AccountId,
-			timestamp: T::BlockNumber,
+			timestamp:BlockNumberFor<T>,
 			reference_no: Vec<u8>,
 		},
 		PayeeAddressConfirmedXcm {
 			account_id: T::AccountId,
-			timestamp: T::BlockNumber,
+			timestamp: BlockNumberFor<T>,
 			reference_no: Vec<u8>,
 		}
 	}

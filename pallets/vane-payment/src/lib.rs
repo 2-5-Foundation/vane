@@ -167,30 +167,30 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		CallExecuted {
 			multi_id: T::AccountId,
-			timestamp: T::BlockNumber,
+			timestamp: BlockNumberFor<T>,
 		},
 
 		MultiAccountCreated {
 			account_id: T::AccountId,
-			timestamp: T::BlockNumber,
+			timestamp: BlockNumberFor<T>,
 		},
 
 		BalanceTransferredAndLocked {
 			to_multi_id: T::AccountId,
 			from: T::AccountId,
-			timestamp: T::BlockNumber,
+			timestamp: BlockNumberFor<T>,
 			reference_no: Vec<u8>,
 		},
 
 		PayeeAddressConfirmed {
 			account_id: T::AccountId,
-			timestamp: T::BlockNumber,
+			timestamp: BlockNumberFor<T>,
 			reference_no: Vec<u8>,
 		},
 
 		PayerAddressConfirmed {
 			account_id: T::AccountId,
-			timestamp: T::BlockNumber,
+			timestamp: BlockNumberFor<T>,
 			reference_no: Vec<u8>,
 		},
 
@@ -199,14 +199,14 @@ pub mod pallet {
 			to_account: T::AccountId,
 			amount: BalanceOfPay<T>,
 			resolver: Option<ResolverChoice>,
-			timestamp: T::BlockNumber,
+			timestamp: BlockNumberFor<T>,
 		},
 		SubmittedOrderPayment {
 			from_account: T::AccountId,
 			to_account: T::AccountId,
 			amount: BalanceOf<T>,
 			resolver: Option<ResolverChoice>,
-			timestamp: T::BlockNumber,
+			timestamp: BlockNumberFor<T>,
 		},
 	}
 

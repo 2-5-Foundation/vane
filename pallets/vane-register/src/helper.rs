@@ -9,11 +9,12 @@ pub use utils::*;
 pub mod utils {
 	use codec::{Decode, Encode};
 	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::*;
 	use frame_support::sp_runtime::Saturating;
 	use pallet_balances::Reasons;
     use sp_std::{vec::Vec,vec};
     use crate::{BalanceOf, VaneId};
-
+	
     use super::Config;
 
 	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -31,11 +32,11 @@ pub struct PayerAccountProfile<T: Config>{
 	email: Option<Vec<u8>>,
 	account_id: T::AccountId,
 	orders_completed:Option<u16>,
-	genesis_time: T::BlockNumber
+	genesis_time: BlockNumberFor<T>
 }
 
 impl<T:Config> PayerAccountProfile<T>{
-	pub fn new(name:Option<Vec<u8>>,id:VaneId,email: Option<Vec<u8>>, account_id:T::AccountId, time:T::BlockNumber) -> Self {
+	pub fn new(name:Option<Vec<u8>>,id:VaneId,email: Option<Vec<u8>>, account_id:T::AccountId, time: BlockNumberFor<T>) -> Self {
 		Self{
 			name,
 			id,
@@ -89,11 +90,11 @@ pub struct PayeeAccountProfile<T: Config> {
 	pub orders_completed: Option<u32>,
 	pub orders_failed: Option<u16>,
 	pub time_average:Option<u32>,
-	genesis_time: T::BlockNumber
+	genesis_time: BlockNumberFor<T>
 }
 
 impl<T:Config> PayeeAccountProfile<T> {
-	pub fn new(name: Vec<u8>,account_id:T::AccountId, location: Vec<u8>,ig_link:Vec<u8>, time: T::BlockNumber) -> Self{
+	pub fn new(name: Vec<u8>,account_id:T::AccountId, location: Vec<u8>,ig_link:Vec<u8>, time: BlockNumberFor<T>) -> Self{
 		Self{
 			name,
 			account_id,

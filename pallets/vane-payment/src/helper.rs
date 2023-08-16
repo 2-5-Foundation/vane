@@ -108,7 +108,7 @@ pub mod utils {
 		allowed_multi_id: T::AccountId,
 		confirmed_multi_id: T::AccountId,
 		proof: T::Hash,
-		time: T::BlockNumber,
+		time: BlockNumberFor<T>,
 	}
 
 	impl<T> CallExecuted<T>
@@ -121,7 +121,7 @@ pub mod utils {
 			allowed_multi_id: T::AccountId,
 			confirmed_multi_id: T::AccountId,
 			proof: T::Hash,
-			time: T::BlockNumber,
+			time: BlockNumberFor<T>,
 		) -> Self {
 			CallExecuted { payer, payee, allowed_multi_id, confirmed_multi_id, proof, time }
 		}
@@ -370,7 +370,7 @@ pub mod utils {
 		// Takes in a multi_id account and register it to Account storage in system pallet
 
 		pub fn create_multi_account(multi_id: T::AccountId) -> DispatchResult {
-			let account_info = AccountInfo::<T::Index, T::AccountData> { ..Default::default() };
+			let account_info = AccountInfo::<T::Nonce, T::AccountData> { ..Default::default() };
 
 			// Ensure the multi_id account is not yet registered in the storage
 			if <frame_system::Pallet<T>>::account_exists(&multi_id) {
