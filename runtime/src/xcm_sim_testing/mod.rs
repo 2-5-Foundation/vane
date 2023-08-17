@@ -9,6 +9,7 @@ use xcm::prelude::*;
 use xcm_simulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain, TestExt};
 
 pub const ALICE: sp_runtime::AccountId32 = sp_runtime::AccountId32::new([0u8; 32]);
+pub const BOB: sp_runtime::AccountId32 = sp_runtime::AccountId32::new([1u8; 32]);
 pub const INITIAL_BALANCE: u128 = 1_000_000_000;
 
 // Vane Parachain
@@ -96,6 +97,7 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 		balances: vec![
 			(ALICE, INITIAL_BALANCE),
 			(child_account_id(1), INITIAL_BALANCE),
+			(BOB,10_000)
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -106,4 +108,89 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 		System::set_block_number(1);
 	});
 	ext
+}
+
+pub type RelayChainPalletXcm = pallet_xcm::Pallet<relay_chain::Runtime>;
+pub type VanePalletXcm = pallet_xcm::Pallet<parachain::Runtime>;
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	use codec::Encode;
+	use frame_support::{assert_ok, weights::Weight};
+	use xcm::latest::QueryResponseInfo;
+	use xcm_simulator::TestExt;
+
+	// Helper function for forming buy execution message
+	fn buy_execution<C>(fees: impl Into<MultiAsset>) -> Instruction<C> {
+		BuyExecution { fees: fees.into(), weight_limit: Unlimited }
+	}
+
+	#[test]
+	fn ump_testing_works(){
+		MockNet::reset();
+
+		Vane::execute_with(||{
+
+			let amount = 100_000;
+
+			// let messages =  VersionedXcm::<()>::V3(Xcm(vec![
+			// 	WithdrawAsset(MultiAssets::from( vec![MultiAsset{
+			// 		id: AssetId::Concrete(MultiLocation::here()),
+			// 		fun: Fungibility::Fungible(amount)
+			// 	}])),
+			// 	BuyExecution { 
+			// 		fees: MultiAsset{
+			// 			id: AssetId::Concrete(MultiLocation::here()),
+			// 			fun: Fungibility::Fungible(amount)
+			// 		},
+			// 		weight_limit: Unlimited
+			// 	},
+			// 	DepositAsset { 
+			// 		assets: MultiAssetFilter::Wild(WildMultiAsset::All),
+			// 		beneficiary: MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 {
+			// 			network: None,
+			// 			id: BOB.into()
+			// 		})} 
+			// 	}
+			// ]));
+
+			let messages = VersionedXcm::V3(Xcm(vec![
+				TransferAsset {
+					assets: MultiAssets::from( vec![MultiAsset{
+                        id: AssetId::Concrete(MultiLocation::here()),
+                        fun: Fungibility::Fungible(amount)
+                    }]),
+
+					beneficiary: MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 { network: None, id: BOB.into() }) } 
+				}
+			]));
+
+
+			 assert_ok!(VanePalletXcm::send(
+
+				parachain::RuntimeOrigin::signed(ALICE),
+				Box::new(xcm::VersionedMultiLocation::V3(MultiLocation::parent())),
+				Box::new(messages)
+
+			));
+
+			// Check the balance for Alice
+			assert_eq!(
+				parachain::Balances::free_balance(ALICE),
+				parachain::Balances::free_balance(ALICE)
+			);
+
+		});
+
+		// Relay chain enviroment
+		Relay::execute_with(||{
+
+			assert_eq!(
+				parachain::Balances::free_balance(ALICE),
+				parachain::Balances::free_balance(ALICE)
+			);
+		})
+	}
 }
