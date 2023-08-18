@@ -156,41 +156,72 @@ mod tests {
 			// 	}
 			// ]));
 
-			let messages = VersionedXcm::V3(Xcm(vec![
+			// let messages = VersionedXcm::V3(Xcm(vec![
+			// 	TransferAsset {
+			// 		assets: MultiAssets::from( vec![MultiAsset{
+            //             id: AssetId::Concrete(MultiLocation::here()),
+            //             fun: Fungibility::Fungible(amount)
+            //         }]),
+
+			// 		beneficiary: MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 { network: None, id: BOB.into() }) } 
+			// 	}
+			// ]));
+			
+
+
+			let source:[u8;32] = ALICE.into();
+			let dest:[u8;32] = BOB.into();
+
+			let messages = Xcm::<()>(vec![
 				TransferAsset {
-					assets: MultiAssets::from( vec![MultiAsset{
-                        id: AssetId::Concrete(MultiLocation::here()),
-                        fun: Fungibility::Fungible(amount)
-                    }]),
+					 assets: (Here, amount).into(), 
+					 beneficiary:  ParentThen(dest.into()).into()
+					}
+			]);
 
-					beneficiary: MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 { network: None, id: BOB.into() }) } 
-				}
-			]));
+			let message = Xcm::<()>(vec![
+				WithdrawAsset((Here, amount).into()),
+				buy_execution((Here, amount)),
+				DepositAsset { assets: AllCounted(1).into(), beneficiary: AccountId32 { network: None, id: BOB.into() }.into() },
+			]);
 
-
-			 assert_ok!(VanePalletXcm::send(
-
-				parachain::RuntimeOrigin::signed(ALICE),
-				Box::new(xcm::VersionedMultiLocation::V3(MultiLocation::parent())),
-				Box::new(messages)
-
-			));
-
-			// Check the balance for Alice
-			assert_eq!(
-				parachain::Balances::free_balance(ALICE),
-				parachain::Balances::free_balance(ALICE)
+			assert_ok!(
+				VanePalletXcm::send(
+					parachain::RuntimeOrigin::signed(ALICE),
+					Box::new(Parent.into()),
+					Box::new(xcm::VersionedXcm::V3(message.clone().into()))
+				)
 			);
 
+			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
+
+
+			//  assert_ok!(VanePalletXcm::send(
+
+			// 	parachain::RuntimeOrigin::signed(ALICE),
+			// 	Box::new(xcm::VersionedMultiLocation::V3(MultiLocation::parent())),
+			// 	Box::new(messages)
+
+			// ));
+
+			
+
 		});
+
+		println!(" Relay Chain Area \n");
 
 		// Relay chain enviroment
 		Relay::execute_with(||{
 
+			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
+
+
 			assert_eq!(
-				parachain::Balances::free_balance(ALICE),
-				parachain::Balances::free_balance(ALICE)
+				parachain::Balances::free_balance(BOB),
+				10_000 + 100_000
+				
 			);
+
 		})
 	}
 }
