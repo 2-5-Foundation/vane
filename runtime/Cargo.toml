@@ -97,6 +97,8 @@ polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot", bran
 xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v1.0.0" }
 xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v1.0.0" }
 polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot", branch = "release-v1.0.0" }
+tracing = { version = "0.1.37" }
+tracing-subscriber = { version = "0.3.16", features = ["env-filter", "tracing-log"] }
 
 
 [features]
