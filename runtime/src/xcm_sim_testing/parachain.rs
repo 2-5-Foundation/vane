@@ -1,5 +1,4 @@
-
-
+use assets_common::matching::FromSiblingParachain;
 use codec::{Decode, Encode};
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -40,6 +39,8 @@ use xcm_simulator::PhantomData;
 // `EnsureOriginWithArg` impl for `CreateOrigin` which allows only XCM origins
 // which are locations containing the class location.
 use xcm_executor::traits::ConvertLocation;
+use crate::{ApprovalDeposit, ForeignAssetsAssetAccountDeposit, ForeignAssetsAssetDeposit, ForeignAssetsMetadataDepositBase, ForeignCreatorsSovereignAccountOf, MetadataDepositPerByte, StringLimit, weights, xcm_config};
+
 pub struct ForeignCreators;
 impl EnsureOriginWithArg<RuntimeOrigin, MultiLocation> for ForeignCreators {
 	type Success = AccountId;
@@ -47,7 +48,7 @@ impl EnsureOriginWithArg<RuntimeOrigin, MultiLocation> for ForeignCreators {
 	fn try_origin(
 		o: RuntimeOrigin,
 		a: &MultiLocation,
-	) -> sp_std::result::Result<Self::Success, RuntimeOrigin> {
+	) -> Result<Self::Success, RuntimeOrigin> {
 		let origin_location = pallet_xcm::EnsureXcm::<Everything>::try_origin(o.clone())?;
 		if !a.starts_with(&origin_location) {
 			return Err(o)
@@ -112,25 +113,25 @@ parameter_types! {
 }
 
 impl frame_system::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type BaseCallFilter = Everything;
+	type BlockWeights = ();
+	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	type Nonce = u64;
 	type Hash = H256;
-	type Hashing = ::sp_runtime::traits::BlakeTwo256;
+	type Hashing = sp_runtime::traits::BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Block = Block;
-	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
-	type BlockWeights = ();
-	type BlockLength = ();
+	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<Balance>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
-	type DbWeight = ();
-	type BaseCallFilter = Everything;
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
 	type OnSetCode = ();
@@ -144,17 +145,17 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Runtime {
-	type MaxLocks = MaxLocks;
-	type Balance = Balance;
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type Balance = Balance;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
-	type WeightInfo = ();
-	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type FreezeIdentifier = ();
+	type MaxLocks = MaxLocks;
+	type MaxReserves = MaxReserves;
 	type MaxHolds = ConstU32<0>;
 	type MaxFreezes = ConstU32<0>;
 }
@@ -172,6 +173,7 @@ impl Config for XcmConfig {
 	type OriginConverter = XcmOriginToCallOrigin;
 	type IsReserve = ();
 	type IsTeleporter = ();
+	type Aliasers = Nothing;
 	type UniversalLocation = UniversalLocation;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
@@ -183,13 +185,12 @@ impl Config for XcmConfig {
 	type AssetClaims = ();
 	type SubscriptionService = ();
 	type PalletInstancesInfo = ();
-	type FeeManager = ();
 	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
+	type FeeManager = ();
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
 	type SafeCallFilter = Everything;
-	type Aliasers = Nothing;
 }
 
 
@@ -363,6 +364,8 @@ pub type TrustedLockers = TrustedLockerCase<RelayTokenForRelay>;
 
 impl pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type CurrencyMatcher = ();
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
@@ -376,28 +379,24 @@ impl pallet_xcm::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
 	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
-	type Currency = Balances;
-	type CurrencyMatcher = ();
+	type AdminOrigin = EnsureRoot<AccountId>;
 	type TrustedLockers = TrustedLockers;
 	type SovereignAccountOf = LocationToAccountId;
 	type MaxLockers = ConstU32<8>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
 	type WeightInfo = pallet_xcm::TestWeightInfo;
-	#[cfg(feature = "runtime-benchmarks")]
-	type ReachableDest = ReachableDest;
-	type AdminOrigin = EnsureRoot<AccountId>;
 }
 
 
 impl vane_order::Config for Runtime {
-	type Currency = Balances;
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
 }
 
 impl vane_payment::Config for Runtime {
-	type Currency = Balances;
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
 }
 
 impl vane_register::Config for Runtime {
@@ -407,6 +406,29 @@ impl vane_register::Config for Runtime {
 
 impl vane_xcm::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+}
+
+impl pallet_assets::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type RemoveItemsLimit = ConstU32<1000>;
+	type AssetId = MultiLocation;
+	type AssetIdParameter = MultiLocation;
+	type Currency = Balances;
+	type CreateOrigin = ForeignCreators;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = ForeignAssetsAssetDeposit;
+	type AssetAccountDeposit = ForeignAssetsAssetAccountDeposit;
+	type MetadataDepositBase = ForeignAssetsMetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = StringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type CallbackHandle = ();
+	type WeightInfo = weights::vane_asset_weights::WeightInfo<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = xcm_config::XcmBenchmarkHelper;
 }
 
 
@@ -424,7 +446,8 @@ construct_runtime!(
 		VaneRegister: vane_register,
 		VanePayment: vane_payment,
 		VaneOrder: vane_order,
-		VaneXcm: vane_xcm
+		VaneXcm: vane_xcm,
+		VaneAssets: pallet_assets = 10
 	}
 );
 

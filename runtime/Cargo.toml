@@ -28,9 +28,6 @@ vane-payment = { version = "1.0.0-dev", default-features = false, path = "../pal
 vane-wallet-less = { version = "1.0.0-dev", default-features = false, path ="../pallets/vane-wallet-less"}
 vane-xcm = {version = "1.0.0-dev", default-features = false,  path ="../pallets/vane-xcm"}
 # ORML
-# orml-xtokens = {  default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "polkadot-v1.0.0" }
-# orml-asset-registry = {  default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "polkadot-v1.0.0" }
-orml-traits = {  git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v1.0.0" }
 
 # Substrate
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v1.0.0" }
@@ -84,6 +81,7 @@ cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus.git"
 pallet-collator-selection = { git = "https://github.com/paritytech/cumulus.git", branch = "polkadot-v1.0.0", default-features = false }
 parachain-info = { git = "https://github.com/paritytech/cumulus.git", branch = "polkadot-v1.0.0", default-features = false }
 parachains-common = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0", default-features = false }
+assets-common = { git = "https://github.com/paritytech/cumulus", default-features = false, branch = "polkadot-v1.0.0" }
 
 [dev-dependencies]
 xcm-simulator = { git = "https://github.com/paritytech/polkadot", branch = "release-v1.0.0" }
@@ -124,6 +122,7 @@ std = [
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-assets/std",
+	"assets-common/std",
 	"pallet-balances/std",
 	"pallet-collective/std",
 	"pallet-collator-selection/std",
@@ -143,10 +142,9 @@ std = [
 	"vane-payment/std",
 	"vane-wallet-less/std",
 	"vane-xcm/std",
+
 	# ORML Pallets
-	# "orml-xtokens/std",
-	# "orml-asset-registry/std",
-	"orml-traits/std",
+
 	#----------------------#
 	"sp-api/std",
 	"sp-block-builder/std",

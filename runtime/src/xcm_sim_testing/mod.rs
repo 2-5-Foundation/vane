@@ -15,7 +15,7 @@ pub const BOB: sp_runtime::AccountId32 = sp_runtime::AccountId32::new([1u8; 32])
 pub const MRISHO: sp_runtime::AccountId32 = sp_runtime::AccountId32::new([2u8; 32]);
 pub const HAJI: sp_runtime::AccountId32 = sp_runtime::AccountId32::new([3u8; 32]);
 
-pub const INITIAL_BALANCE: u128 = 1_000_000_000;
+pub const INITIAL_BALANCE: u128 = 1_000_000;
 
 static INIT: Once = Once::new();
 fn init_tracing() {
@@ -99,6 +99,15 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 	.assimilate_storage(&mut t)
 	.unwrap();
 
+	// Vane asset
+	pallet_assets::GenesisConfig::<Runtime> {
+
+		metadata: vec![],
+		assets: vec![],
+		accounts: vec![]
+
+	}.assimilate_storage(&mut t).unwrap();
+
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| {
 		sp_tracing::try_init_simple();
@@ -110,7 +119,7 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 
 
 pub fn relay_ext() -> sp_io::TestExternalities {
-	use relay_chain::{Runtime, RuntimeOrigin, System};
+	use relay_chain::{Runtime, System};
 
 	let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
 
@@ -138,9 +147,8 @@ pub type VanePalletXcm = pallet_xcm::Pallet<parachain::Runtime>;
 mod tests {
 	use super::*;
 
-	use codec::Encode;
-	use frame_support::{assert_ok, weights::Weight};
-	use xcm::latest::QueryResponseInfo;
+
+	use frame_support::{assert_ok};
 	use xcm_simulator::TestExt;
 
 	// Helper function for forming buy execution message
@@ -168,9 +176,41 @@ mod tests {
 
 		MockNet::reset();
 
+		let amount = 100_000u128;
+
+		//Relay Chain enviroment
+
+		// Reserve Transfer from Relay to Vane Parachain
+		Relay::execute_with(||{
+			assert_ok!(RelayChainPalletXcm::reserve_transfer_assets(
+				relay_chain::RuntimeOrigin::signed(ALICE),
+				Box::new(Parachain(1).into()),
+				Box::new(AccountId32 { network: None, id: ALICE.into() }.into()),
+				Box::new((Here, amount).into()),
+				0,
+			));
+
+			// Relay chain events
+			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
+
+			// Assert if the tokens are in Vane sovereign Account in the relay chain
+			assert_eq!(
+				relay_chain::Balances::free_balance(&child_account_id(1)),
+				INITIAL_BALANCE + amount
+			);
+		});
+
+
 		Vane::execute_with(||{
 
-			let amount = 100_000u128;
+			// Test custom asset transfer
+
+			// Assert if the tokens are in Vane sovereign Account in the relay chain
+			// assert_eq!(
+			// 	relay_chain::Balances::free_balance(&child_account_id(1)),
+			// 	INITIAL_BALANCE + amount
+			// );
+
 
 			// let messages =  VersionedXcm::<()>::V3(Xcm(vec![
 			// 	WithdrawAsset(MultiAssets::from( vec![MultiAsset{
@@ -206,15 +246,12 @@ mod tests {
 
 
 
-			let source:[u8;32] = ALICE.into();
-			let dest:[u8;32] = BOB.into();
-
-			let messages = Xcm::<()>(vec![
-				TransferAsset {
-					 assets: (Here, amount).into(),
-					 beneficiary: MultiLocation { parents: 0, interior: X1(AccountId32 { network: None, id: BOB.into() }) }
-					}
-			]);
+			// let messages = Xcm::<()>(vec![
+			// 	TransferAsset {
+			// 		 assets: (Here, amount).into(),
+			// 		 beneficiary: MultiLocation { parents: 0, interior: X1(AccountId32 { network: None, id: BOB.into() }) }
+			// 		}
+			// ]);
 
 
 
@@ -231,36 +268,36 @@ mod tests {
 			// }),
 
 
-
-			let message = Xcm::<()>(vec![
-
-				WithdrawAsset(( Concrete(AccountId32 { network: None, id: ALICE.into() }.into()), amount).into()),
-
-			 	//buy_execution((Here, amount)),
-
-				DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: BOB.into() }.into() },
-			]);
-
-			let call = relay_chain::RuntimeCall::Balances(pallet_balances::Call::transfer_keep_alive { dest: MRISHO.into(), value: amount.into() });
+			//
+			// let message = Xcm::<()>(vec![
+			//
+			// 	WithdrawAsset(( Concrete(AccountId32 { network: None, id: ALICE.into() }.into()), amount).into()),
+			//
+			//  	//buy_execution((Here, amount)),
+			//
+			// 	DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: BOB.into() }.into() },
+			// ]);
+			//
+			// let call = relay_chain::RuntimeCall::Balances(pallet_balances::Call::transfer_keep_alive { dest: MRISHO.into(), value: amount.into() });
 
 			// local balance transfer
-			let local_message = Xcm::<()>(vec![
-				// TransferAsset {
-				// 	assets: (Here, amount).into(),
-				// 	beneficiary: MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 { network: None, id: BOB.into() }) }
-				//    }
-				DescendOrigin(Junctions::from(AccountId32 { network: None, id: ALICE.into() })),
-				// Transact {
-				// 	origin_kind: OriginKind::SovereignAccount,
-				// 	require_weight_at_most: Weight::from_parts(1_000_000_000, 1024 * 1024),
-				// 	call: call.encode().into()
-				// },
-				WithdrawAsset((Here, amount).into()),
-				buy_execution((Here,amount)),
-				DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: MRISHO.into() }.into() },
-
-				//DescendOrigin(Junctions::from(AccountId32 { network: None, id: BOB.into() }))
-			]);
+			// let local_message = Xcm::<()>(vec![
+			// 	// TransferAsset {
+			// 	// 	assets: (Here, amount).into(),
+			// 	// 	beneficiary: MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 { network: None, id: BOB.into() }) }
+			// 	//    }
+			// 	DescendOrigin(Junctions::from(AccountId32 { network: None, id: ALICE.into() })),
+			// 	// Transact {
+			// 	// 	origin_kind: OriginKind::SovereignAccount,
+			// 	// 	require_weight_at_most: Weight::from_parts(1_000_000_000, 1024 * 1024),
+			// 	// 	call: call.encode().into()
+			// 	// },
+			// 	WithdrawAsset((Here, amount).into()),
+			// 	buy_execution((Here,amount)),
+			// 	DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: MRISHO.into() }.into() },
+			//
+			// 	//DescendOrigin(Junctions::from(AccountId32 { network: None, id: BOB.into() }))
+			// ]);
 
 			// assert_ok!(
 			// 	VanePalletXcm::execute(
@@ -272,12 +309,12 @@ mod tests {
 			// );
 
 
-			assert_ok!(
-				VanePalletXcm::send_xcm(Here, Parent, local_message)
-			);
-
-			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
-			println!("\n");
+			// assert_ok!(
+			// 	VanePalletXcm::send_xcm(Here, Parent, local_message)
+			// );
+			//
+			// parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
+			// println!("\n");
 
 			// assert_eq!(
 			// 	parachain::Balances::free_balance(MRISHO),
@@ -306,22 +343,7 @@ mod tests {
 
 		});
 
-		println!(" Relay Chain Area \n");
 
-		// Relay chain enviroment
-		Relay::execute_with(||{
-
-			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
-			// balance for MRISHO & PARACHAIN
-			println!("Mrisho: {:?}  Para: {:?}",relay_chain::Balances::free_balance(MRISHO),relay_chain::Balances::free_balance(child_account_id(1)));
-
-			// assert_eq!(
-			// 	parachain::Balances::free_balance(BOB),
-			// 	10_000 + 100_000
-			//
-			// );
-
-		})
 	}
 
 	#[test]

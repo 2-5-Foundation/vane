@@ -15,10 +15,10 @@ mod weights;
 pub mod xcm_config;
 
 
-
+use sp_std::marker::PhantomData;
 pub use currency::{deposit, EXISTENTIAL_DEPOSIT, MICROUNIT, MILLIUNIT, UNIT};
 pub use fee::WeightToFee;
-use sp_std::boxed::Box;
+
 
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use sp_api::impl_runtime_apis;
@@ -34,10 +34,11 @@ use sp_runtime::{
 use vane_order;
 use vane_payment;
 use vane_wallet_less;
-// use orml_xtokens;
-// use orml_asset_registry;
-use orml_traits::{self, location::AbsoluteReserveProvider};
+use pallet_assets;
 use vane_xcm;
+use assets_common;
+use assets_common::foreign_creators::ForeignCreators;
+use assets_common::matching::FromSiblingParachain;
 
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -52,6 +53,7 @@ use frame_support::{
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, ConstantMultiplier, Weight},
 	PalletId,
 };
+use frame_support::pallet_prelude::Get;
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned,
@@ -61,7 +63,7 @@ use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 use xcm_config::{RelayLocation, XcmConfig, XcmOriginToTransactDispatchOrigin};
-use xcm_builder::FixedWeightBounds;
+use xcm_builder::{AccountId32Aliases, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -76,6 +78,7 @@ pub use parachains_common::{
 	impls::{AccountIdOf, DealWithFees},
 	Balance, BlockNumber, Hash, Signature,
 };
+use polkadot_parachain::primitives::Sibling;
 
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 
@@ -314,26 +317,34 @@ parameter_types! {
 pub type Nonce = u32;
 
 impl frame_system::Config for Runtime {
-	/// The identifier used to distinguish between accounts.
-	type AccountId = AccountId;
+	/// The ubiquitous event type.
+	type RuntimeEvent = RuntimeEvent;
+	/// The basic call filter to use in dispatchable.
+	type BaseCallFilter = Everything;
+	/// Block & extrinsics weights: base values and limits.
+	type BlockWeights = RuntimeBlockWeights;
+	/// The maximum length of a block (in bytes).
+	type BlockLength = RuntimeBlockLength;
+	/// The ubiquitous origin type.
+	type RuntimeOrigin = RuntimeOrigin;
 	/// The aggregated dispatch type that is available for extrinsics.
 	type RuntimeCall = RuntimeCall;
-	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
-	type Lookup = AccountIdLookup<AccountId, ()>;
 	/// The index type for storing how many extrinsics an account has signed.
 	type Nonce = Nonce;
 	/// The type for hashing blocks and tries.
 	type Hash = Hash;
 	/// The hashing algorithm used.
 	type Hashing = BlakeTwo256;
+	/// The identifier used to distinguish between accounts.
+	type AccountId = AccountId;
+	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
+	type Lookup = AccountIdLookup<AccountId, ()>;
 	/// The block type.
 	type Block = Block;
-	/// The ubiquitous event type.
-	type RuntimeEvent = RuntimeEvent;
-	/// The ubiquitous origin type.
-	type RuntimeOrigin = RuntimeOrigin;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
 	type BlockHashCount = BlockHashCount;
+	/// The weight of database operations that the runtime can invoke.
+	type DbWeight = RocksDbWeight;
 	/// Runtime version.
 	type Version = Version;
 	/// Converts a module to an index of this module in the runtime.
@@ -344,16 +355,8 @@ impl frame_system::Config for Runtime {
 	type OnNewAccount = ();
 	/// What to do if an account is fully reaped from the system.
 	type OnKilledAccount = ();
-	/// The weight of database operations that the runtime can invoke.
-	type DbWeight = RocksDbWeight;
-	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = Everything;
 	/// Weight information for the extrinsics of this pallet.
 	type SystemWeightInfo = ();
-	/// Block & extrinsics weights: base values and limits.
-	type BlockWeights = RuntimeBlockWeights;
-	/// The maximum length of a block (in bytes).
-	type BlockLength = RuntimeBlockLength;
 	/// This is used as an identifier of the chain. 42 is the generic substrate prefix.
 	type SS58Prefix = SS58Prefix;
 	/// The action to take on a Runtime Upgrade
@@ -385,21 +388,21 @@ parameter_types! {
 use sp_core::ConstU128;
 
 impl pallet_balances::Config for Runtime {
-	type MaxLocks = ConstU32<50>;
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
-	/// The type for recording an account's balance.
-	type Balance = Balance;
 	/// The ubiquitous event type.
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
+	/// The type for recording an account's balance.
+	type Balance = Balance;
 	type DustRemoval = ();
 	type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
 	type AccountStore = System;
-	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
-	type FreezeIdentifier = ();
-	type MaxFreezes = ();
+	type ReserveIdentifier = [u8; 8];
 	type RuntimeHoldReason = ();
+	type FreezeIdentifier = ();
+	type MaxLocks = ConstU32<50>;
+	type MaxReserves = ();
 	type MaxHolds = ();
+	type MaxFreezes = ();
 }
 
 parameter_types! {
@@ -464,8 +467,8 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
 	type ControllerOrigin = EnsureRoot<AccountId>;
 	type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
-	type WeightInfo = ();
 	type PriceForSiblingDelivery = ();
+	type WeightInfo = ();
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
@@ -508,23 +511,25 @@ parameter_types! {
 type CouncilCollective = pallet_collective::Instance1;
 impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeEvent = RuntimeEvent;
 	type Proposal = RuntimeCall;
-	type SetMembersOrigin = EnsureRoot<AccountId>;
+	type RuntimeEvent = RuntimeEvent;
 	type MotionDuration = CouncilMotionDuration;
 	type MaxProposals = CouncilMaxProposals;
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type MaxProposalWeight = MaxCollectivesProposalWeight;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<AccountId>;
+	type MaxProposalWeight = MaxCollectivesProposalWeight;
 }
 
 use sp_core::ConstBool;
+use sp_runtime::traits::AccountIdConversion;
+use xcm_executor::traits::ConvertLocation;
 
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
-	type DisabledValidators = ();
 	type MaxAuthorities = ConstU32<100_000>;
+	type DisabledValidators = ();
 	type AllowMultipleBlocksPerSlot = ConstBool<false>;
 }
 
@@ -563,13 +568,13 @@ impl pallet_collator_selection::Config for Runtime {
 }
 // Custom pallets Implementation
 impl vane_order::Config for Runtime {
-	type Currency = Balances;
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
 }
 
 impl vane_payment::Config for Runtime {
-	type Currency = Balances;
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
 }
 
 impl vane_register::Config for Runtime {
@@ -581,8 +586,53 @@ impl vane_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 }
 
+
+
+pub type ForeignCreatorsSovereignAccountOf = (
+	SiblingParachainConvertsVia<Sibling, AccountId>,
+	AccountId32Aliases<RelayNetwork, AccountId>,
+	ParentIsPreset<AccountId>,
+);
+
+parameter_types! {
+	// we just reuse the same deposits
+	pub const ForeignAssetsAssetDeposit: Balance = AssetDeposit::get();
+	pub const ForeignAssetsAssetAccountDeposit: Balance = AssetAccountDeposit::get();
+	pub const ForeignAssetsApprovalDeposit: Balance = ApprovalDeposit::get();
+	pub const ForeignAssetsAssetsStringLimit: u32 = StringLimit::get();
+	pub const ForeignAssetsMetadataDepositBase: Balance = MetadataDepositBase::get();
+	pub const ForeignAssetsMetadataDepositPerByte: Balance = MetadataDepositPerByte::get();
+}
+
+impl pallet_assets::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type RemoveItemsLimit = ConstU32<1000>;
+	type AssetId = MultiLocation;
+	type AssetIdParameter = MultiLocation;
+	type Currency = Balances;
+	type CreateOrigin = ForeignCreators<
+		(FromSiblingParachain<parachain_info::Pallet<Runtime>>),
+		ForeignCreatorsSovereignAccountOf,
+		AccountId,
+	>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = ForeignAssetsAssetDeposit;
+	type AssetAccountDeposit = ForeignAssetsAssetAccountDeposit;
+	type MetadataDepositBase = ForeignAssetsMetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = StringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type CallbackHandle = ();
+	type WeightInfo = weights::vane_asset_weights::WeightInfo<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = xcm_config::XcmBenchmarkHelper;
+}
+
 // impl vane_wallet_less::Config for Runtime {
-	
+
 // }
 
 // Vane XCM & ORML-XTOKENS
@@ -607,14 +657,10 @@ parameter_types! {
 	pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
-orml_traits::parameter_type_with_key! {
-	pub ParachainMinFee: |_location: MultiLocation| -> Option<u128> {
-		None
-	};
-}
 
 
-// pub type VaneAssetRegistry<T> = orml_asset_registry::Pallet<T>;
+
+
 // pub struct TokenIdConvert;
 // impl Convert<u32, Option<MultiLocation>> for TokenIdConvert {
 // 	fn convert(id: u32) -> Option<MultiLocation> {
@@ -625,7 +671,7 @@ orml_traits::parameter_type_with_key! {
 // impl Convert<MultiLocation, Option<u32>> for TokenIdConvert {
 // 	fn convert(location: MultiLocation) -> Option<u32> {
 // 		match location {
-			
+
 // 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
 // 				if para_id == u32::from(ParachainInfo::parachain_id()) =>
 // 				None, // No Native Token
@@ -711,6 +757,7 @@ construct_runtime!(
 		// Monetary stuff.
 		Balances: pallet_balances = 10,
 		TransactionPayment: pallet_transaction_payment = 11,
+		VaneAssets: pallet_assets = 12,
 
 		// Governance
 		Sudo: pallet_sudo = 15,
@@ -734,10 +781,6 @@ construct_runtime!(
 		VaneOrder: vane_order = 51,
 		VanePayment: vane_payment = 52,
 		VaneXcm: vane_xcm = 53,
-
-		// ORML Pallets
-		// VaneAssets: orml_asset_registry = 60,
-		// VaneXtokens: orml_xtokens = 61,
 
 	}
 );
