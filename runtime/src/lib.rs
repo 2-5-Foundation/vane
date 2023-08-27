@@ -612,7 +612,7 @@ impl pallet_assets::Config for Runtime {
 	type AssetIdParameter = MultiLocation;
 	type Currency = Balances;
 	type CreateOrigin = ForeignCreators<
-		(FromSiblingParachain<parachain_info::Pallet<Runtime>>),
+		FromSiblingParachain<parachain_info::Pallet<Runtime>>,
 		ForeignCreatorsSovereignAccountOf,
 		AccountId,
 	>;

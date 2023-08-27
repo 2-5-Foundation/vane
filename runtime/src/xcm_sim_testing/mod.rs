@@ -15,6 +15,8 @@ pub const BOB: sp_runtime::AccountId32 = sp_runtime::AccountId32::new([1u8; 32])
 pub const MRISHO: sp_runtime::AccountId32 = sp_runtime::AccountId32::new([2u8; 32]);
 pub const HAJI: sp_runtime::AccountId32 = sp_runtime::AccountId32::new([3u8; 32]);
 
+pub const VANE: sp_runtime::AccountId32 = sp_runtime::AccountId32::new([5u8; 32]);
+
 pub const INITIAL_BALANCE: u128 = 1_000_000;
 
 static INIT: Once = Once::new();
@@ -100,11 +102,18 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 	.unwrap();
 
 	// Vane asset
+	let asset1 = MultiLocation{
+		parents: 0,
+		interior: X2(PalletInstance(10),GeneralIndex(1)).into()
+	};
+
+	let asset_name = "vDot".as_bytes().to_vec();
+
 	pallet_assets::GenesisConfig::<Runtime> {
 
-		metadata: vec![],
-		assets: vec![],
-		accounts: vec![]
+		metadata: vec![(asset1,asset_name.clone(),asset_name,10)],
+		assets: vec![(asset1,VANE,true,1)],
+		accounts: vec![(asset1,VANE,100_000)]
 
 	}.assimilate_storage(&mut t).unwrap();
 
@@ -140,8 +149,10 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 	ext
 }
 
+
 pub type RelayChainPalletXcm = pallet_xcm::Pallet<relay_chain::Runtime>;
 pub type VanePalletXcm = pallet_xcm::Pallet<parachain::Runtime>;
+pub type VanePalletAsset = pallet_assets::Pallet<parachain::Runtime>;
 
 #[cfg(test)]
 mod tests {
@@ -177,7 +188,7 @@ mod tests {
 		MockNet::reset();
 
 		let amount = 100_000u128;
-
+		let asset_amount = 1000u128;
 		//Relay Chain enviroment
 
 		// Reserve Transfer from Relay to Vane Parachain
@@ -201,9 +212,57 @@ mod tests {
 		});
 
 
+		let asset1 = MultiLocation{
+			parents: 0,
+			interior: X2(PalletInstance(10),GeneralIndex(1)).into()
+		};
+
 		Vane::execute_with(||{
 
 			// Test custom asset transfer
+			assert_ok!(
+				VanePalletAsset::transfer_keep_alive(
+					parachain::RuntimeOrigin::signed(VANE),
+					asset1,
+					MRISHO.into(),
+					1000
+				)
+			);
+
+			assert_eq!(
+				VanePalletAsset::balance(asset1,VANE),
+				100_000 - 1000
+			);
+			assert_eq!(
+				VanePalletAsset::balance(asset1,MRISHO),
+				1000
+			);
+
+			// Test custom asset transfer with local xcm execute
+
+			let local_asset_message = Xcm::<parachain::RuntimeCall>(vec![
+				WithdrawAsset(MultiAssets::from( vec![MultiAsset{
+					id: Concrete(asset1),
+					fun: asset_amount.into()
+				}])),
+
+				//  buy_execution(MultiAsset {
+				// 	 id: Concrete(asset1),
+				// 	fun: amount.into()
+				// }),
+				// DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: BOB.into() }.into() },
+			]);
+
+			assert_ok!(
+				VanePalletXcm::execute(
+					parachain::RuntimeOrigin::signed(VANE),
+					Box::new(VersionedXcm::V3(local_asset_message)),
+					Weight::from_parts(1_000_000_005, 1025 * 1024)
+				)
+			);
+
+			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
+
 
 			// Assert if the tokens are in Vane sovereign Account in the relay chain
 			// assert_eq!(
