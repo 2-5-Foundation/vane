@@ -41,6 +41,8 @@ decl_test_parachain! {
 	}
 }
 
+
+
 decl_test_relay_chain! {
 	pub struct Relay {
 		Runtime = relay_chain::Runtime,
@@ -61,6 +63,8 @@ decl_test_network! {
 		],
 	}
 }
+
+
 
 use xcm_executor::traits::ConvertLocation;
 
@@ -86,20 +90,30 @@ pub fn parent_account_account_id(who: sp_runtime::AccountId32) -> parachain::Acc
 }
 
 
+// Externatility for testing rserve based custom asset transfer
+// whereby local asset is set to 0 and the Origin will mint the token
+//
+// The purpose is to make sure the Vane derivitive tokens to be in same supply with foreign chain asset
+// And the issuer account is set to Vane sovereign Account
 pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 	use parachain::{MsgQueue, Runtime, System};
 
 	let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
 
+	// pallet_balances::GenesisConfig::<Runtime> {
+	// 	balances: vec![
+	// 		(ALICE, INITIAL_BALANCE),
+	// 		(parent_account_id(), INITIAL_BALANCE),
+	// 		(BOB,1_000_000)
+	// 	],
+	// }
+	// .assimilate_storage(&mut t)
+	// .unwrap();
+
 	pallet_balances::GenesisConfig::<Runtime> {
-		balances: vec![
-			(ALICE, INITIAL_BALANCE),
-			(parent_account_id(), INITIAL_BALANCE),
-			(BOB,1_000_000)
-		],
-	}
-	.assimilate_storage(&mut t)
-	.unwrap();
+		balances: vec![],
+
+	}.assimilate_storage(&mut t).unwrap();
 
 	// Vane asset
 	let asset1 = MultiLocation{
@@ -107,13 +121,22 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 		interior: X2(PalletInstance(10),GeneralIndex(1)).into()
 	};
 
-	let asset_name = "vDot".as_bytes().to_vec();
+	let asset1_name = "vDot".as_bytes().to_vec();
+	let _asset2_name = "vUSDT".as_bytes().to_vec();
+
+	// pallet_assets::GenesisConfig::<Runtime> {
+	//
+	// 	metadata: vec![(asset1,asset1_name.clone(),asset1_name,10)],
+	// 	assets: vec![(asset1,VANE,true,1)],
+	// 	accounts: vec![(asset1,VANE,100_000)]
+	//
+	// }.assimilate_storage(&mut t).unwrap();
 
 	pallet_assets::GenesisConfig::<Runtime> {
 
-		metadata: vec![(asset1,asset_name.clone(),asset_name,10)],
-		assets: vec![(asset1,VANE,true,1)],
-		accounts: vec![(asset1,VANE,100_000)]
+		metadata: vec![(asset1,asset1_name.clone(),asset1_name,10)],
+		assets: vec![(asset1,child_account_id(1),true,1)],
+		accounts: vec![(asset1,child_account_id(1),0)]
 
 	}.assimilate_storage(&mut t).unwrap();
 
@@ -125,6 +148,54 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 	});
 	ext
 }
+
+
+
+pub fn vane_ext(para_id: u32) -> sp_io::TestExternalities {
+	use parachain::{MsgQueue, Runtime, System};
+
+	let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
+
+	pallet_balances::GenesisConfig::<Runtime> {
+		balances: vec![(ALICE, INITIAL_BALANCE)],
+	}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+	// Vane asset
+	let asset1 = MultiLocation{
+		parents: 0,
+		interior: X2(PalletInstance(10),GeneralIndex(1)).into()
+	};
+
+	let asset1_name = "vDOT".as_bytes().to_vec();
+
+
+	// pallet_assets::GenesisConfig::<Runtime> {
+	//
+	// 	metadata: vec![(asset1,asset1_name.clone(),asset1_name,10)],
+	// 	assets: vec![(asset1,VANE,true,1)],
+	// 	accounts: vec![(asset1,VANE,100_000)]
+	//
+	// }.assimilate_storage(&mut t).unwrap();
+
+	pallet_assets::GenesisConfig::<Runtime> {
+
+		metadata: vec![(asset1,asset1_name.clone(),asset1_name,10)],
+		assets: vec![(asset1,child_account_id(1),true,1)],
+		accounts: vec![(asset1,child_account_id(1),0)]
+
+	}.assimilate_storage(&mut t).unwrap();
+
+	let mut ext = sp_io::TestExternalities::new(t);
+	ext.execute_with(|| {
+		sp_tracing::try_init_simple();
+		System::set_block_number(1);
+		MsgQueue::set_para_id(para_id.into());
+	});
+	ext
+}
+
 
 
 pub fn relay_ext() -> sp_io::TestExternalities {
@@ -153,6 +224,7 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 pub type RelayChainPalletXcm = pallet_xcm::Pallet<relay_chain::Runtime>;
 pub type VanePalletXcm = pallet_xcm::Pallet<parachain::Runtime>;
 pub type VanePalletAsset = pallet_assets::Pallet<parachain::Runtime>;
+pub type VanePalletBalances = pallet_balances::Pallet<parachain::Runtime>;
 
 #[cfg(test)]
 mod tests {
@@ -160,6 +232,7 @@ mod tests {
 
 
 	use frame_support::{assert_ok};
+	use frame_support::traits::fungibles::Inspect;
 	use xcm::v3::OriginKind::SovereignAccount;
 	use xcm_simulator::TestExt;
 
@@ -169,7 +242,7 @@ mod tests {
 	}
 
 	#[test]
-	fn vane_remote_soln1_works(){
+	fn vane_remote_soln1_native_token_works(){
 
 		// Alice --> RC                                           RC
 		//           -  (Reserve transfer)                         ^
@@ -192,7 +265,7 @@ mod tests {
 		let asset_amount = 1000u128;
 		//Relay Chain enviroment
 
-		// Reserve Transfer from Relay to Vane Parachain
+		// Reserve Transfer native vane token from Relay to Vane Parachain
 		Relay::execute_with(||{
 			assert_ok!(RelayChainPalletXcm::reserve_transfer_assets(
 				relay_chain::RuntimeOrigin::signed(ALICE),
@@ -212,11 +285,11 @@ mod tests {
 			);
 		});
 
-
 		let asset1 = MultiLocation{
 			parents: 0,
 			interior: X2(PalletInstance(10),GeneralIndex(1)).into()
 		};
+
 
 		Vane::execute_with(||{
 
@@ -275,143 +348,79 @@ mod tests {
 			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
 
-			// Assert if the tokens are in Vane sovereign Account in the relay chain
-			// assert_eq!(
-			// 	relay_chain::Balances::free_balance(&child_account_id(1)),
-			// 	INITIAL_BALANCE + amount
-			// );
+		});
 
 
-			// let messages =  VersionedXcm::<()>::V3(Xcm(vec![
-			// 	WithdrawAsset(MultiAssets::from( vec![MultiAsset{
-			// 		id: AssetId::Concrete(MultiLocation::here()),
-			// 		fun: Fungibility::Fungible(amount)
-			// 	}])),
-			// 	BuyExecution {
-			// 		fees: MultiAsset{
-			// 			id: AssetId::Concrete(MultiLocation::here()),
-			// 			fun: Fungibility::Fungible(amount)
-			// 		},
-			// 		weight_limit: Unlimited
-			// 	},
-			// 	DepositAsset {
-			// 		assets: MultiAssetFilter::Wild(WildMultiAsset::All),
-			// 		beneficiary: MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 {
-			// 			network: None,
-			// 			id: BOB.into()
-			// 		})}
-			// 	}
-			// ]));
+	}
 
-			// let messages = VersionedXcm::V3(Xcm(vec![
-			// 	TransferAsset {
-			// 		assets: MultiAssets::from( vec![MultiAsset{
-            //             id: AssetId::Concrete(MultiLocation::here()),
-            //             fun: Fungibility::Fungible(amount)
-            //         }]),
+	#[test]
+	fn vane_remote_soln1_custom_asset_derivitive_works(){
+		MockNet::reset();
 
-			// 		beneficiary: MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 { network: None, id: BOB.into() }) }
-			// 	}
-			// ]));
+		let asset1 = MultiLocation{
+			parents: 0,
+			interior: X2(PalletInstance(10),GeneralIndex(1)).into()
+		};
 
+		// Test minting
+		Vane::execute_with(||{
+			assert_ok!(VanePalletAsset::mint(
+				parachain::RuntimeOrigin::signed(child_account_id(1)),
+				asset1,
+				MRISHO.into(),
+				1000
+			));
+
+			// Check if the asset is minted
+			assert_eq!(
+				VanePalletAsset::balance(asset1,MRISHO),
+				1000
+			);
+			// Check total issuance & supply
+			assert_eq!(
+				VanePalletAsset::total_supply(asset1) + VanePalletAsset::total_issuance(asset1),
+				2000
+			);
 
 
-			// let messages = Xcm::<()>(vec![
-			// 	TransferAsset {
-			// 		 assets: (Here, amount).into(),
-			// 		 beneficiary: MultiLocation { parents: 0, interior: X1(AccountId32 { network: None, id: BOB.into() }) }
-			// 		}
-			// ]);
+			// Test minting with xcm_execute
+			let asset_mint_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::mint {
+				id: asset1,
+				beneficiary: BOB.into(),
+				amount: 1000,
+			});
 
+			let local_asset_message = Xcm::<parachain::RuntimeCall>(vec![
+				Transact {
+					origin_kind: SovereignAccount,
+					require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024),
+					call:asset_mint_call.encode().into()
+				}
 
+			]);
 
-			// WithdrawAsset(MultiAssets::from(vec![
-			// 	MultiAsset {
-			// 		id: Concrete(AccountId32 { network: None, id: ALICE.into() }.into()),
-			// 		fun: amount.into()
-			// 	}
-			// ])),
+			assert_ok!(
+				VanePalletXcm::execute(
+					parachain::RuntimeOrigin::signed(child_account_id(1)),
+					Box::new(VersionedXcm::V3(local_asset_message)),
+					Weight::from_parts(1_000_000_005, 1025 * 1024)
+				)
+			);
 
-			// buy_execution(MultiAsset {
-			// 	id: Concrete(AccountId32 { network: None, id: ALICE.into() }.into()),
-			// 	fun: amount.into()
-			// }),
-
-
-			//
-			// let message = Xcm::<()>(vec![
-			//
-			// 	WithdrawAsset(( Concrete(AccountId32 { network: None, id: ALICE.into() }.into()), amount).into()),
-			//
-			//  	//buy_execution((Here, amount)),
-			//
-			// 	DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: BOB.into() }.into() },
-			// ]);
-			//
-			// let call = relay_chain::RuntimeCall::Balances(pallet_balances::Call::transfer_keep_alive { dest: MRISHO.into(), value: amount.into() });
-
-			// local balance transfer
-			// let local_message = Xcm::<()>(vec![
-			// 	// TransferAsset {
-			// 	// 	assets: (Here, amount).into(),
-			// 	// 	beneficiary: MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 { network: None, id: BOB.into() }) }
-			// 	//    }
-			// 	DescendOrigin(Junctions::from(AccountId32 { network: None, id: ALICE.into() })),
-			// 	// Transact {
-			// 	// 	origin_kind: OriginKind::SovereignAccount,
-			// 	// 	require_weight_at_most: Weight::from_parts(1_000_000_000, 1024 * 1024),
-			// 	// 	call: call.encode().into()
-			// 	// },
-			// 	WithdrawAsset((Here, amount).into()),
-			// 	buy_execution((Here,amount)),
-			// 	DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: MRISHO.into() }.into() },
-			//
-			// 	//DescendOrigin(Junctions::from(AccountId32 { network: None, id: BOB.into() }))
-			// ]);
-
-			// assert_ok!(
-			// 	VanePalletXcm::execute(
-			// 		parachain::RuntimeOrigin::signed(ALICE),
-			// 		Box::new(VersionedXcm::V3(local_message)),
-			// 		Weight::from_parts(1_000_000_005, 1025 * 1024)
-			// 	)
-
-			// );
-
-
-			// assert_ok!(
-			// 	VanePalletXcm::send_xcm(Here, Parent, local_message)
-			// );
-			//
-			// parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
-			// println!("\n");
-
-			// assert_eq!(
-			// 	parachain::Balances::free_balance(MRISHO),
-			// 	100_000
-			// );
-
-			// assert_ok!(
-			// 	VanePalletXcm::send(
-			// 		parachain::RuntimeOrigin::signed(ALICE),
-			// 		Box::new(Parent.into()),
-			// 		Box::new(xcm::VersionedXcm::V3(message.clone().into()))
-			// 	)
-			// );
-
-				//X1(AccountId32 { network: None, id: ALICE.into() }.into())
-
-			//  assert_ok!(VanePalletXcm::send(
-
-			// 	parachain::RuntimeOrigin::signed(ALICE),
-			// 	Box::new(xcm::VersionedMultiLocation::V3(MultiLocation::parent())),
-			// 	Box::new(messages)
-
-			// ));
-
-
+			// Check if the asset is minted
+			assert_eq!(
+				VanePalletAsset::balance(asset1,BOB),
+				1000
+			);
+			// Check total issuance & supply
+			assert_eq!(
+				VanePalletAsset::total_supply(asset1) + VanePalletAsset::total_issuance(asset1),
+				4000
+			);
 
 		});
+
+
 
 
 	}
