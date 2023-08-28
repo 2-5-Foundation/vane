@@ -24,9 +24,9 @@ fn init_tracing() {
 	INIT.call_once(|| {
 		// Add test tracing (from sp_tracing::init_for_tests()) but filtering for xcm logs only
 		let _ = tracing_subscriber::fmt()
-			.with_max_level(tracing::Level::TRACE)
-			.with_env_filter("xcm=trace,system::events=trace") // Comment out this line to see all traces
-			.with_test_writer()
+			//.with_max_level(tracing::Level::TRACE)
+			//.with_env_filter("xcm=trace,system::events=trace") // Comment out this line to see all traces
+			//.with_test_writer()
 			.init();
 	});
 }
@@ -160,6 +160,7 @@ mod tests {
 
 
 	use frame_support::{assert_ok};
+	use xcm::v3::OriginKind::SovereignAccount;
 	use xcm_simulator::TestExt;
 
 	// Helper function for forming buy execution message
@@ -239,18 +240,19 @@ mod tests {
 			);
 
 			// Test custom asset transfer with local xcm execute
+			let asset_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::transfer_keep_alive {
+				id: asset1,
+				target: BOB.into(),
+				amount: asset_amount,
+			});
 
 			let local_asset_message = Xcm::<parachain::RuntimeCall>(vec![
-				WithdrawAsset(MultiAssets::from( vec![MultiAsset{
-					id: Concrete(asset1),
-					fun: asset_amount.into()
-				}])),
+				Transact {
+					origin_kind: SovereignAccount,
+					require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024),
+					call:asset_call.encode().into()
+				}
 
-				//  buy_execution(MultiAsset {
-				// 	 id: Concrete(asset1),
-				// 	fun: amount.into()
-				// }),
-				// DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: BOB.into() }.into() },
 			]);
 
 			assert_ok!(
@@ -259,6 +261,15 @@ mod tests {
 					Box::new(VersionedXcm::V3(local_asset_message)),
 					Weight::from_parts(1_000_000_005, 1025 * 1024)
 				)
+			);
+
+			assert_eq!(
+				VanePalletAsset::balance(asset1,VANE),
+				100_000 - asset_amount*2
+			);
+			assert_eq!(
+				VanePalletAsset::balance(asset1,BOB),
+				1000
 			);
 
 			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));

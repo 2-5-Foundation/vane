@@ -34,33 +34,33 @@ use xcm_executor::{
 	Config, XcmExecutor,
 };
 use xcm_simulator::PhantomData;
-
+use assets_common::foreign_creators::ForeignCreators;
 
 // `EnsureOriginWithArg` impl for `CreateOrigin` which allows only XCM origins
 // which are locations containing the class location.
 use xcm_executor::traits::ConvertLocation;
 use crate::{ApprovalDeposit, ForeignAssetsAssetAccountDeposit, ForeignAssetsAssetDeposit, ForeignAssetsMetadataDepositBase, ForeignCreatorsSovereignAccountOf, MetadataDepositPerByte, StringLimit, weights, xcm_config};
 
-pub struct ForeignCreators;
-impl EnsureOriginWithArg<RuntimeOrigin, MultiLocation> for ForeignCreators {
-	type Success = AccountId;
-
-	fn try_origin(
-		o: RuntimeOrigin,
-		a: &MultiLocation,
-	) -> Result<Self::Success, RuntimeOrigin> {
-		let origin_location = pallet_xcm::EnsureXcm::<Everything>::try_origin(o.clone())?;
-		if !a.starts_with(&origin_location) {
-			return Err(o)
-		}
-		SovereignAccountOf::convert_location(&origin_location).ok_or(o)
-	}
-
-	#[cfg(feature = "runtime-benchmarks")]
-	fn try_successful_origin(a: &MultiLocation) -> Result<RuntimeOrigin, ()> {
-		Ok(pallet_xcm::Origin::Xcm(a.clone()).into())
-	}
-}
+// pub struct ForeignCreators;
+// impl EnsureOriginWithArg<RuntimeOrigin, MultiLocation> for ForeignCreators {
+// 	type Success = AccountId;
+//
+// 	fn try_origin(
+// 		o: RuntimeOrigin,
+// 		a: &MultiLocation,
+// 	) -> Result<Self::Success, RuntimeOrigin> {
+// 		let origin_location = pallet_xcm::EnsureXcm::<Everything>::try_origin(o.clone())?;
+// 		if !a.starts_with(&origin_location) {
+// 			return Err(o)
+// 		}
+// 		SovereignAccountOf::convert_location(&origin_location).ok_or(o)
+// 	}
+//
+// 	#[cfg(feature = "runtime-benchmarks")]
+// 	fn try_successful_origin(a: &MultiLocation) -> Result<RuntimeOrigin, ()> {
+// 		Ok(pallet_xcm::Origin::Xcm(a.clone()).into())
+// 	}
+// }
 
 parameter_types! {
 	pub const ReservedXcmpWeight: Weight = Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_div(4), 0);
@@ -407,6 +407,7 @@ impl vane_register::Config for Runtime {
 impl vane_xcm::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
 }
+impl parachain_info::Config for Runtime {}
 
 impl pallet_assets::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -415,7 +416,11 @@ impl pallet_assets::Config for Runtime {
 	type AssetId = MultiLocation;
 	type AssetIdParameter = MultiLocation;
 	type Currency = Balances;
-	type CreateOrigin = ForeignCreators;
+	type CreateOrigin = ForeignCreators<
+		FromSiblingParachain<parachain_info::Pallet<Runtime>>,
+		ForeignCreatorsSovereignAccountOf,
+		AccountId,
+	>;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type AssetDeposit = ForeignAssetsAssetDeposit;
 	type AssetAccountDeposit = ForeignAssetsAssetAccountDeposit;
