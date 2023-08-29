@@ -347,9 +347,7 @@ mod tests {
 
 			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
-
 		});
-
 
 	}
 
@@ -421,7 +419,53 @@ mod tests {
 		});
 
 
+	}
 
+	#[test]
+	fn vane_remote_soln1_custom_asset_derivitive_xcm_works(){
+		MockNet::reset();
+
+		// Alice in relay chain initiates reserve based transfer
+		Relay::execute_with(||{
+
+			let asset1 = MultiLocation{
+				parents: 0,
+				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
+			};
+
+			let asset_mint_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::mint {
+				id: asset1,
+				beneficiary: ALICE.into(),
+				amount: 1000,
+			});
+
+			let inner_message = Xcm::<()>(vec![
+				Transact {
+					origin_kind: OriginKind::Native, // Try native & sovereign
+					require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024),
+					call: asset_mint_call.encode().into(),
+				}
+			]);
+
+			let outer_message = Xcm::<()>(vec![
+				TransferReserveAsset {
+					assets: (Here,1000).into(),
+					dest: X1(child_account_id(1).into()).into(),
+					xcm: inner_message,
+				}]
+			);
+
+ 			assert_ok!(
+				RelayChainPalletXcm::send(
+					relay_chain::RuntimeOrigin::signed(ALICE),
+					Box::new((Here).into()),
+					Box::new(outer_message.into())
+				)
+			);
+		});
+
+		// Relay chain sends Reserve Asset Deposited Instruction to Vana
+		// But we add Transact instruction to manually mint the tokens
 
 	}
 
