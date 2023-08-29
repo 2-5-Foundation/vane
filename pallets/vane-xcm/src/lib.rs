@@ -17,17 +17,18 @@ mod pallet{
 	use crate::helper;
 
 	use frame_support::Blake2_128Concat;
-	
+
 	use frame_support::pallet_prelude::*;
 	use frame_support::parameter_types;
 	use frame_system::pallet_prelude::*;
 	use vane_payment::helper::Token;
 	use vane_payment::{Confirm,ConfirmedSigners};
 	use sp_std::vec::Vec;
+	use crate::Event::TestStored;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_xcm::Config + vane_payment::Config {
-	
+
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 	}
 
@@ -38,6 +39,9 @@ mod pallet{
 
 	#[pallet::storage]
 	pub type MultiSigToPayee<T: Config> = StorageMap<_,Blake2_128,T::AccountId,T::AccountId>;
+
+	#[pallet::storage]
+	pub type TestStorage<T: Config> = StorageMap<_,Blake2_128, T::AccountId, u32,ValueQuery>;
 
 	#[pallet::error]
 	pub enum Error<T>{
@@ -69,7 +73,9 @@ mod pallet{
 			account_id: T::AccountId,
 			timestamp: BlockNumberFor<T>,
 			reference_no: Vec<u8>,
-		}
+		},
+		TestStored
+
 	}
 
 
@@ -109,16 +115,16 @@ mod pallet{
 		#[pallet::weight(10)]
 		pub fn vane_confirm(
 			origin: OriginFor<T>,
-			who: vane_payment::Confirm,
+			who: Confirm,
 			reference_no: Vec<u8>,
 			amount: u128, // From PayerTxnTicket
 
 		) -> DispatchResult {
 
-			
+
 			let user_account = ensure_signed(origin)?;
 			// Check the storage
-			let b_vec = vane_payment::ConfirmedSigners::<T>::get(reference_no.clone());
+			let b_vec = ConfirmedSigners::<T>::get(reference_no.clone());
 
 			if let Some(addr) = b_vec.get(0) {
 				if addr.eq(&user_account) {
@@ -126,7 +132,7 @@ mod pallet{
 
 				// Else for checking if payee tries to confirm twice.
 				} else {
-					vane_payment::ConfirmedSigners::<T>::try_mutate(reference_no.clone(), |vec| {
+					ConfirmedSigners::<T>::try_mutate(reference_no.clone(), |vec| {
 						vec.try_push(user_account.clone())
 					})
 					.map_err(|_| vane_payment::Error::<T>::ExceededSigners)?;
@@ -142,7 +148,7 @@ mod pallet{
 					// Construct AccountSigner object from ConfirmedSigners storage
 
 					let confirmed_acc_signers = vane_payment::AccountSigners::<T>::new(
-						vane_payment::ConfirmedSigners::<T>::get(reference_no.clone())
+						ConfirmedSigners::<T>::get(reference_no.clone())
 							.get(0)
 							.ok_or(Error::<T>::UnexpectedError)?
 							.clone(),
@@ -208,8 +214,18 @@ mod pallet{
 
 			Ok(())
 		}
-	
-	
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(10)]
+		pub fn test_storing(origin:OriginFor<T>,num:u32) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			TestStorage::<T>::set(&caller,num);
+			Self::deposit_event(TestStored);
+			Ok(())
+		}
+
+
+
 	}
 
 }

@@ -111,7 +111,9 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 	// .unwrap();
 
 	pallet_balances::GenesisConfig::<Runtime> {
-		balances: vec![],
+		balances: vec![
+			(ALICE,INITIAL_BALANCE)
+		],
 
 	}.assimilate_storage(&mut t).unwrap();
 
@@ -151,52 +153,6 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 
 
 
-pub fn vane_ext(para_id: u32) -> sp_io::TestExternalities {
-	use parachain::{MsgQueue, Runtime, System};
-
-	let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
-
-	pallet_balances::GenesisConfig::<Runtime> {
-		balances: vec![(ALICE, INITIAL_BALANCE)],
-	}
-		.assimilate_storage(&mut t)
-		.unwrap();
-
-	// Vane asset
-	let asset1 = MultiLocation{
-		parents: 0,
-		interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-	};
-
-	let asset1_name = "vDOT".as_bytes().to_vec();
-
-
-	// pallet_assets::GenesisConfig::<Runtime> {
-	//
-	// 	metadata: vec![(asset1,asset1_name.clone(),asset1_name,10)],
-	// 	assets: vec![(asset1,VANE,true,1)],
-	// 	accounts: vec![(asset1,VANE,100_000)]
-	//
-	// }.assimilate_storage(&mut t).unwrap();
-
-	pallet_assets::GenesisConfig::<Runtime> {
-
-		metadata: vec![(asset1,asset1_name.clone(),asset1_name,10)],
-		assets: vec![(asset1,child_account_id(1),true,1)],
-		accounts: vec![(asset1,child_account_id(1),0)]
-
-	}.assimilate_storage(&mut t).unwrap();
-
-	let mut ext = sp_io::TestExternalities::new(t);
-	ext.execute_with(|| {
-		sp_tracing::try_init_simple();
-		System::set_block_number(1);
-		MsgQueue::set_para_id(para_id.into());
-	});
-	ext
-}
-
-
 
 pub fn relay_ext() -> sp_io::TestExternalities {
 	use relay_chain::{Runtime, System};
@@ -205,9 +161,9 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
-			(ALICE, INITIAL_BALANCE),
-			(child_account_id(1), INITIAL_BALANCE),
-			(BOB,1_000_000)
+			(ALICE, 100_000),
+			//(child_account_id(1), INITIAL_BALANCE),
+			(BOB,100_000)
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -225,6 +181,7 @@ pub type RelayChainPalletXcm = pallet_xcm::Pallet<relay_chain::Runtime>;
 pub type VanePalletXcm = pallet_xcm::Pallet<parachain::Runtime>;
 pub type VanePalletAsset = pallet_assets::Pallet<parachain::Runtime>;
 pub type VanePalletBalances = pallet_balances::Pallet<parachain::Runtime>;
+pub type VanePalletVaneXcm = vane_xcm::Pallet<parachain::Runtime>;
 
 #[cfg(test)]
 mod tests {
@@ -425,6 +382,7 @@ mod tests {
 	fn vane_remote_soln1_custom_asset_derivitive_xcm_works(){
 		MockNet::reset();
 
+		//init_tracing();
 		// Alice in relay chain initiates reserve based transfer
 		Relay::execute_with(||{
 
@@ -439,33 +397,159 @@ mod tests {
 				amount: 1000,
 			});
 
+			let test_storing = parachain::RuntimeCall::VaneXcm(vane_xcm::Call::test_storing {
+				num: 50,
+			});
+
 			let inner_message = Xcm::<()>(vec![
 				Transact {
-					origin_kind: OriginKind::Native, // Try native & sovereign
+					origin_kind: SovereignAccount, // Try native & sovereign
 					require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024),
-					call: asset_mint_call.encode().into(),
+					call: test_storing.encode().into(),
 				}
 			]);
 
-			let outer_message = Xcm::<()>(vec![
-				TransferReserveAsset {
-					assets: (Here,1000).into(),
-					dest: X1(child_account_id(1).into()).into(),
-					xcm: inner_message,
-				}]
-			);
+			let xcm_dummy = Xcm::<()>(vec![
+
+			]);
+
+			// let outer_message = Xcm::<()>(vec![
+			// 	TransferReserveAsset {
+			// 		assets: (Here,1000).into(),
+			// 		dest: Parachain(1).into(),
+			// 		xcm: xcm_dummy,
+			// 	}]
+			// );
+
+			let outer_message_2 = Xcm::<()>(vec![
+				WithdrawAsset((Here,1000).into()),
+				InitiateReserveWithdraw {
+					assets: AllCounted(1).into(),
+					reserve: (Parachain(1).into()),
+					xcm: xcm_dummy,
+				}
+			]);
 
  			assert_ok!(
 				RelayChainPalletXcm::send(
 					relay_chain::RuntimeOrigin::signed(ALICE),
-					Box::new((Here).into()),
-					Box::new(outer_message.into())
+					Box::new(Parachain(1).into()),
+					Box::new(VersionedXcm::V3(outer_message_2.into()))
 				)
 			);
+
+
+			// assert_ok!(
+			// 	RelayChainPalletXcm::execute(
+			// 		relay_chain::RuntimeOrigin::signed(ALICE),
+			// 		Box::new(VersionedXcm::V3(outer_message)),
+			// 		Weight::from_parts(1_000_000_005,1025*1024),
+			// 	)
+			// );
+
+			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
+
+			assert_eq!(
+				relay_chain::Balances::free_balance(ALICE),
+				INITIAL_BALANCE -1000
+			);
+
+			// assert_eq!(
+			// 	relay_chain::Balances::free_balance(&child_account_id(1)),
+			// 	1000
+			// );
+
+
 		});
 
+		println!("Vane Area \n");
 		// Relay chain sends Reserve Asset Deposited Instruction to Vana
 		// But we add Transact instruction to manually mint the tokens
+
+		Vane::execute_with(||{
+			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
+
+		});
+
+	}
+
+	#[test]
+	fn vane_remote_soln1_custom_asset_derivitive_manual_xcm_works(){
+		MockNet::reset();
+
+
+
+		Relay::execute_with(||{
+
+			// Test remote signed transact instruction
+			let test_call = parachain::RuntimeCall::VaneXcm(vane_xcm::Call::test_storing {
+				num: 50,
+			});
+
+			let message = Xcm::<()>(vec![
+				Transact {
+					origin_kind: SovereignAccount,
+					require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024),
+					call: test_call.encode().into(),
+				}
+			]);
+
+			let message_2 = Xcm::<()>(vec![
+				TransferAsset {
+					assets: (Here, 1000).into(),
+					beneficiary: X1(Parachain(1)).into(),
+				}
+			]);
+
+
+			// assert_ok!(
+			// 	RelayChainPalletXcm::send(
+			// 		relay_chain::RuntimeOrigin::signed(ALICE),
+			// 		Box::new(X1(Parachain(1)).into()),
+			// 		Box::new(VersionedXcm::V3(message))
+			// 	)
+			// );
+
+			// ------ ** This call is filtered and its annoying ** ----------------
+
+			// assert_ok!(
+			// 	RelayChainPalletXcm::execute(
+			// 		relay_chain::RuntimeOrigin::signed(ALICE),
+			// 		Box::new(VersionedXcm::V3(message_2)),
+			// 		Weight::from_parts(1_000_000_005,1025*1024)
+			// 	)
+			// );
+
+
+			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
+
+		});
+
+		println!("Vane Area \n");
+
+		Vane::execute_with(||{
+
+			let message = Xcm::<()>(vec![
+				WithdrawAsset((Here,1000).into())
+			]);
+
+			assert_ok!(
+				VanePalletXcm::send_xcm(
+					Here,
+					Here,
+					message
+				)
+			);
+
+
+			// assert_eq!(
+			// 	parachain::Balances::free_balance(BOB),
+			// 	1000
+			// );
+
+			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
+
+		});
 
 	}
 

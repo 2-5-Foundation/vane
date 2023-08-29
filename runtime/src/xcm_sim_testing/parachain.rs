@@ -1,10 +1,6 @@
 use assets_common::matching::FromSiblingParachain;
 use codec::{Decode, Encode};
-use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{EnsureOrigin, EnsureOriginWithArg, Everything, EverythingBut, Nothing, ContainsPair},
-	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
-};
+use frame_support::{construct_runtime, match_types, parameter_types, traits::{EnsureOrigin, EnsureOriginWithArg, Everything, EverythingBut, Nothing, ContainsPair}, weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight}};
 
 use frame_system::EnsureRoot;
 use sp_core::{ConstU32, H256, Get};
@@ -22,13 +18,7 @@ use polkadot_parachain::primitives::{
 	DmpMessageHandler, Id as ParaId, Sibling, XcmpMessageFormat, XcmpMessageHandler,
 };
 use xcm::{latest::prelude::*, VersionedXcm};
-use xcm_builder::{
-	Account32Hash, AccountId32Aliases, AllowUnpaidExecutionFrom, ConvertedConcreteId,
-	CurrencyAdapter as XcmCurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds,
-	IsConcrete, NativeAsset, NoChecking, NonFungiblesAdapter, ParentIsPreset,
-	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-	SovereignSignedViaLocation,
-};
+use xcm_builder::{Account32Hash, AccountId32Aliases, AliasForeignAccountId32, AllowUnpaidExecutionFrom, ConvertedConcreteId, CurrencyAdapter as XcmCurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, IsConcrete, NativeAsset, NoChecking, NonFungiblesAdapter, ParentIsPreset, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation};
 use xcm_executor::{
 	traits::JustTry,
 	Config, XcmExecutor,
@@ -164,6 +154,18 @@ impl pallet_balances::Config for Runtime {
 pub type XcmRouter = super::ParachainXcmRouter<MsgQueue>;
 pub type Barrier = AllowUnpaidExecutionFrom<Everything>;
 
+match_types! {
+	pub type SiblingPrefix: impl Contains<MultiLocation> = {
+		MultiLocation { parents: 1, interior: X1(Parachain(_)) }
+	};
+	pub type ChildPrefix: impl Contains<MultiLocation> = {
+		MultiLocation { parents: 0, interior: X1(Parachain(_)) }
+	};
+	pub type ParentPrefix: impl Contains<MultiLocation> = {
+		MultiLocation { parents: 1, interior: Here }
+	};
+}
+
 
 pub struct XcmConfig;
 impl Config for XcmConfig {
@@ -173,7 +175,7 @@ impl Config for XcmConfig {
 	type OriginConverter = XcmOriginToCallOrigin;
 	type IsReserve = ();
 	type IsTeleporter = ();
-	type Aliasers = Nothing;
+	type Aliasers = AliasForeignAccountId32<ParentPrefix>;
 	type UniversalLocation = UniversalLocation;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
