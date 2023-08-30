@@ -112,7 +112,8 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
-			(ALICE,INITIAL_BALANCE)
+			(ALICE,INITIAL_BALANCE),
+			(parent_account_id(), INITIAL_BALANCE)
 		],
 
 	}.assimilate_storage(&mut t).unwrap();
@@ -176,7 +177,7 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-
+pub type RelayChainPalletBalances = pallet_balances::Pallet<relay_chain::Runtime>;
 pub type RelayChainPalletXcm = pallet_xcm::Pallet<relay_chain::Runtime>;
 pub type VanePalletXcm = pallet_xcm::Pallet<parachain::Runtime>;
 pub type VanePalletAsset = pallet_assets::Pallet<parachain::Runtime>;
@@ -497,10 +498,30 @@ mod tests {
 
 		Relay::execute_with(||{
 
-			// Test remote signed transact instruction
+			// 1. Alice -> Parachain(1)
+			assert_ok!(
+				RelayChainPalletBalances::transfer_keep_alive(
+					relay_chain::RuntimeOrigin::signed(ALICE),
+					child_account_id(1).into(),
+					1000
+				)
+			);
+
+			// 2. Test remote signed transact instruction
 			let test_call = parachain::RuntimeCall::VaneXcm(vane_xcm::Call::test_storing {
 				acc: ALICE,
-				num: 50,
+				num: 1000,
+			});
+
+			let asset1 = MultiLocation{
+				parents: 0,
+				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
+			};
+
+			let asset_mint_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::mint {
+				id: asset1,
+				beneficiary: ALICE.into(),
+				amount: 1000,
 			});
 
 			let message = Xcm::<()>(vec![
@@ -511,21 +532,44 @@ mod tests {
 				}
 			]);
 
-			let message_2 = Xcm::<()>(vec![
-				TransferAsset {
-					assets: (Here, 1000).into(),
-					beneficiary: X1(Parachain(1)).into(),
-				}
-			]);
+			// Will Try more on this
+
+			// let transfer_msg = Xcm::<()>(vec![
+			// 	Transact {
+			// 		origin_kind: SovereignAccount,
+			// 		require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024),
+			// 		call: test_call.encode().into(),
+			// 	},
+			// 	WithdrawAsset((Here,1000).into()),
+			// 	InitiateReserveWithdraw {
+			// 		assets: All.into(),
+			// 		reserve: X1(Parachain(1)).into(),
+			// 		xcm: message,
+			// 	},
+			//
+			// ]);
+
+			assert_ok!(
+				RelayChainPalletXcm::send(
+					relay_chain::RuntimeOrigin::signed(ALICE),
+					Box::new(X1(Parachain(1)).into()),
+					Box::new(VersionedXcm::V3(message))
+				)
+			);
+
+			assert_eq!(
+				relay_chain::Balances::free_balance(&child_account_id(1)),
+				1000
+			);
 
 
-			// assert_ok!(
-			// 	RelayChainPalletXcm::send(
-			// 		relay_chain::RuntimeOrigin::signed(ALICE),
-			// 		Box::new(X1(Parachain(1)).into()),
-			// 		Box::new(VersionedXcm::V3(message))
-			// 	)
-			// );
+			//
+			// let message_2 = Xcm::<()>(vec![
+			// 	TransferAsset {
+			// 		assets: (Here, 1000).into(),
+			// 		beneficiary: X1(Parachain(1)).into(),
+			// 	}
+			// ]);
 
 			// ------ ** This call is filtered and its annoying ** ----------------
 
@@ -546,23 +590,44 @@ mod tests {
 
 		Vane::execute_with(||{
 
-			let message = Xcm::<()>(vec![
-				WithdrawAsset((Here,1000).into())
+			assert_eq!(
+				VanePalletVaneXcm::get_test_stored(ALICE),
+				1000
+			);
+
+			let asset1 = MultiLocation{
+				parents: 0,
+				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
+			};
+
+			// Mint the equivalent tokens
+			let asset_mint_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::mint {
+				id: asset1,
+				beneficiary: ALICE.into(),
+				amount: 1000,
+			});
+
+			let local_asset_message = Xcm::<parachain::RuntimeCall>(vec![
+				Transact {
+					origin_kind: SovereignAccount,
+					require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024),
+					call:asset_mint_call.encode().into()
+				}
+
 			]);
 
 			assert_ok!(
-				VanePalletXcm::send_xcm(
-					Here,
-					Here,
-					message
+				VanePalletXcm::execute(
+					parachain::RuntimeOrigin::signed(child_account_id(1)),
+					Box::new(VersionedXcm::V3(local_asset_message)),
+					Weight::from_parts(1_000_000_005, 1025 * 1024)
 				)
 			);
 
-
-			// assert_eq!(
-			// 	parachain::Balances::free_balance(BOB),
-			// 	1000
-			// );
+			assert_eq!(
+				VanePalletAsset::balance(asset1,ALICE),
+				1000
+			);
 
 			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
