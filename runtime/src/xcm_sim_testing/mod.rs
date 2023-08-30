@@ -191,6 +191,7 @@ mod tests {
 
 	use frame_support::{assert_ok};
 	use frame_support::traits::fungibles::Inspect;
+	use sp_runtime::traits::Dispatchable;
 	use xcm::v3::OriginKind::SovereignAccount;
 	use xcm_simulator::TestExt;
 
@@ -631,9 +632,55 @@ mod tests {
 
 			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
+			// UMP
+			// from Vane's Alice to RC's Alice
+
+			//1. Burn local assets, 2. XCM message sending from SeoverignAcc to Alice
+
+			let asset_burn_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::burn {
+				id: asset1,
+				amount: 1000,
+				who: ALICE.into(),
+			});
+
+			assert_ok!(
+				asset_burn_call.dispatch(parachain::RuntimeOrigin::signed(child_account_id(1)))
+			);
+
+			assert_eq!(
+				VanePalletAsset::balance(asset1,ALICE),
+				0
+			);
+
+			// After burning
+			let return_message = Xcm::<()>(vec![
+				TransferAsset {
+					assets: (Here,1000).into(),
+					beneficiary: AccountId32 { network: None, id: BOB.into() }.into(),
+				}
+			]);
+
+			assert_ok!(
+				VanePalletXcm::send_xcm(
+					Here,
+					Parent,
+					return_message
+				)
+			);
+
+
 		});
 
+		Relay::execute_with(||{
+			//Check
+			assert_eq!(
+				relay_chain::Balances::free_balance(BOB),
+				1000 + 100_000
+			);
+		})
+
 	}
+
 
 	#[test]
 	fn vane_remote_soln2_works(){
