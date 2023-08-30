@@ -217,15 +217,22 @@ mod pallet{
 
 		#[pallet::call_index(2)]
 		#[pallet::weight(10)]
-		pub fn test_storing(origin:OriginFor<T>,num:u32) -> DispatchResult {
+		pub fn test_storing(origin:OriginFor<T>,acc:T::AccountId,num:u32) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
-			TestStorage::<T>::set(&caller,num);
+			TestStorage::<T>::set(&acc,num);
 			Self::deposit_event(TestStored);
 			Ok(())
 		}
 
 
 
+	}
+
+	impl<T: Config> Pallet<T>{
+		pub fn get_test_stored(account: T::AccountId) -> u32 {
+			let value = TestStorage::<T>::get(account);
+			value
+		}
 	}
 
 }

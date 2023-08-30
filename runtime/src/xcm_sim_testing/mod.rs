@@ -398,7 +398,13 @@ mod tests {
 			});
 
 			let test_storing = parachain::RuntimeCall::VaneXcm(vane_xcm::Call::test_storing {
+				acc: ALICE,
 				num: 50,
+			});
+
+			let test_transfer = parachain::RuntimeCall::Balances(pallet_balances::Call::transfer_keep_alive {
+				dest: BOB.into(),
+				value: 1000,
 			});
 
 			let inner_message = Xcm::<()>(vec![
@@ -421,38 +427,43 @@ mod tests {
 			// 	}]
 			// );
 
-			let outer_message_2 = Xcm::<()>(vec![
-				WithdrawAsset((Here,1000).into()),
-				InitiateReserveWithdraw {
-					assets: AllCounted(1).into(),
-					reserve: (Parachain(1).into()),
-					xcm: xcm_dummy,
-				}
-			]);
+			// let outer_message_2 = Xcm::<relay_chain::RuntimeCall>(vec![
+			// 	WithdrawAsset((Here,1000).into()),
+			// 	DepositAsset {
+			// 		assets: AllCounted(1).into(),
+			// 		beneficiary: (Parachain(1).into()),
+			// 	},
+			// 	// InitiateReserveWithdraw {
+			// 	// 	assets: AllCounted(1).into(),
+			// 	// 	reserve: (Parachain(1).into()),
+			// 	// 	xcm: xcm_dummy,
+			// 	// }
+			// ]);
 
  			assert_ok!(
 				RelayChainPalletXcm::send(
 					relay_chain::RuntimeOrigin::signed(ALICE),
 					Box::new(Parachain(1).into()),
-					Box::new(VersionedXcm::V3(outer_message_2.into()))
+					Box::new(VersionedXcm::V3(inner_message.into()))
 				)
 			);
 
+			// Call is filtered
 
 			// assert_ok!(
 			// 	RelayChainPalletXcm::execute(
 			// 		relay_chain::RuntimeOrigin::signed(ALICE),
-			// 		Box::new(VersionedXcm::V3(outer_message)),
+			// 		Box::new(VersionedXcm::V3(outer_message_2)),
 			// 		Weight::from_parts(1_000_000_005,1025*1024),
 			// 	)
 			// );
 
 			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
-			assert_eq!(
-				relay_chain::Balances::free_balance(ALICE),
-				INITIAL_BALANCE -1000
-			);
+			// assert_eq!(
+			//	relay_chain::Balances::free_balance(ALICE),
+			// 	INITIAL_BALANCE -1000
+			// );
 
 			// assert_eq!(
 			// 	relay_chain::Balances::free_balance(&child_account_id(1)),
@@ -467,8 +478,13 @@ mod tests {
 		// But we add Transact instruction to manually mint the tokens
 
 		Vane::execute_with(||{
+
 			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
+			assert_eq!(
+				VanePalletVaneXcm::get_test_stored(ALICE),
+				50
+			);
 		});
 
 	}
@@ -483,6 +499,7 @@ mod tests {
 
 			// Test remote signed transact instruction
 			let test_call = parachain::RuntimeCall::VaneXcm(vane_xcm::Call::test_storing {
+				acc: ALICE,
 				num: 50,
 			});
 
