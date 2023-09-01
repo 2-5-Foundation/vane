@@ -158,7 +158,7 @@ mod pallet{
 			who: Confirm,
 			reference_no: Vec<u8>,
 			amount: u128, // From PayerTxnTicket
-
+			asset_id: T::AssetIdParameter
 		) -> DispatchResult {
 
 
@@ -222,8 +222,11 @@ mod pallet{
 					let allowed_multi_id = vane_payment::Pallet::<T>::derive_multi_id(allowed_signers);
 					// Compute the hash of both multi_ids (proof)
 					if confirmed_multi_id.eq(&allowed_multi_id) {
-						// Dipatch xcm call
-						Self::vane_xcm_confirm_transfer_dot(payee,amount)?
+						// Dispatch xcm call
+
+						let multi_id_multi_acc = T::Lookup::unlookup(allowed_multi_id);
+
+						Self::vane_xcm_confirm_transfer_dot(payee,multi_id_multi_acc,amount,asset_id)?
 
 					} else {
 						return Err(vane_payment::Error::<T>::FailedToMatchAccounts.into());

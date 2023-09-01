@@ -199,7 +199,7 @@ pub mod pallet {
 		SubmittedPayment {
 			from_account: T::AccountId,
 			to_account: T::AccountId,
-			amount: BalanceOfPay<T>,
+			amount: u128,
 			resolver: Option<ResolverChoice>,
 			timestamp: BlockNumberFor<T>,
 		},
@@ -250,7 +250,7 @@ pub mod pallet {
 		pub fn vane_pay(
 			origin: OriginFor<T>,
 			payee: T::AccountId,
-			amount: BalanceOfPay<T>,
+			amount: u128,
 			resolver: Option<ResolverChoice>,
 		) -> DispatchResult {
 			// 1. Check if the Payee is in the Register Storage

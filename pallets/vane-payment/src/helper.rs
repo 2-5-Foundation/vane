@@ -15,7 +15,7 @@ use codec::{Decode, Encode};
 use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::*;
 use sp_runtime::{traits::TrailingZeroInput, MultiAddress};
-use sp_std::vec::Vec;
+use sp_std::{vec::Vec,vec};
 
 pub use utils::*;
 pub mod utils {
@@ -33,6 +33,7 @@ pub mod utils {
 		traits::{Dispatchable, StaticLookup, TrailingZeroInput, Zero},
 		DispatchError,
 	};
+	use sp_runtime::traits::UniqueSaturatedInto;
 	use vane_register::BalanceOf;
 
 
@@ -159,8 +160,8 @@ pub mod utils {
 	pub struct TxnReceipt<T: Config> {
 		payee: T::AccountId,
 		payer: T::AccountId,
-		pub multi_id: AccountIdLookupOf<T>,
-		amount: u128,
+		pub multi_id: T::AccountId,
+		pub amount: u128,
 		reference_no: Vec<u8>,
 		currency: Option<Token>,
 		no_txn: Vec<(u128)>,
@@ -171,7 +172,7 @@ pub mod utils {
 		pub fn new(
 			payee: T::AccountId,
 			payer: T::AccountId,
-			multi_id: AccountIdLookupOf<T>,
+			multi_id: T::AccountId,
 			ref_no: Vec<u8>,
 			amount: u128,
 			txn: (u128),
@@ -182,6 +183,10 @@ pub mod utils {
 
 		pub fn update_txn(&mut self, txn: (u128)){
 			self.no_txn.push(txn)
+		}
+
+		pub fn update_amount(&mut self, amount: u128){
+			self.amount += amount
 		}
 	}
 
@@ -221,7 +226,7 @@ pub mod utils {
 		Payee,
 	}
 
-	impl<T: Config> Pallet<T> {
+	impl<T: Config > Pallet<T> {
 		// Derive reference no
 		//#[cfg(feature = "std")]
 		pub fn derive_reference_no(
@@ -246,27 +251,51 @@ pub mod utils {
 		pub fn inner_vane_pay_wo_resolver(
 			payer: T::AccountId,
 			payee: T::AccountId,
-			amount: BalanceOfPay<T>,
+			amount: u128,
 			currency: Option<Token>
 		) -> DispatchResult {
 			let accounts = AccountSigners::<T>::new(payee.clone(), payer.clone(), None);
 			let multi_id = Self::derive_multi_id(accounts.clone());
 
-			let multi_id_account_lookup = T::Lookup::unlookup(multi_id);
-
 			let ref_no = Self::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
 
 			AllowedSigners::<T>::insert(&payer, &ref_no, accounts);
 
-			let balance:u128 = amount.try_into().map_err(|_| Error::<T>::UnexpectedError)? as u128;
 
-			let ticket =
-				TxnReceipt::<T>::new(payee.clone(), payer.clone(), ref_no.clone(),multi_id_account_lookup, balance,(balance),currency);
+			let receipt =
+				TxnReceipt::<T>::new(payee.clone(), payer.clone(), multi_id.clone(),ref_no.clone(), amount,(amount),currency);
 			// Store to each storage item for txntickets
-			// Useful for getting refrence no for TXN confirmation
-			PayeeTxnReceipt::<T>::mutate(&payee, |p_vec| p_vec.push(ticket.clone()));
+			// Useful for getting reference no for TXN confirmation
+			// Start with the payee storage
 
-			PayerTxnReceipt::<T>::mutate(&payer, &payee, |p_vec| p_vec.push(ticket.clone()));
+			PayeeTxnReceipt::<T>::mutate(&payee, |p_vec|{
+				// Check if the multi_id already exists in the receipts and get its index of the receipt
+				let index = p_vec.iter().position(|mut receipt| receipt.multi_id == multi_id);
+				if let Some(idx) = index {
+					// Get the receipt
+					let mut receipt = p_vec.get_mut(idx).ok_or(Error::<T>::UnexpectedError).unwrap();
+					receipt.update_txn(amount);
+					receipt.update_amount(amount);
+
+				}else{
+					p_vec.push(receipt.clone())
+				}
+			});
+
+			// Update for Payer/Sender Txn receipt
+			let existing_payer_receipt = PayerTxnReceipt::<T>::get(&payer,&payee);
+
+			if let Some(receipt) = existing_payer_receipt {
+
+				PayerTxnReceipt::<T>::mutate(&payer, &payee, |receipt_inner|{
+					receipt_inner.clone().unwrap().update_txn(amount)
+				});
+
+			}else{
+
+				PayerTxnReceipt::<T>::insert(&payer,&payee,receipt);
+			}
+
 
 			Self::create_multi_account(multi_id.clone())?;
 
@@ -277,11 +306,13 @@ pub mod utils {
 				timestamp: time,
 			});
 
+			let balance: BalanceOfPay<T> = amount.try_into().map_err(|_| Error::<T>::UnexpectedError)?;
+
 			// Transfer balance from Payer to Multi_Id
 			<T as Config>::Currency::transfer(
 				&payer,
 				&multi_id,
-				amount,
+				balance,
 				ExistenceRequirement::KeepAlive,
 			)?;
 

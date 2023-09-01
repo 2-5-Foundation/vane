@@ -46,8 +46,6 @@ pub mod utils {
 			let accounts = vane_payment::AccountSigners::<T>::new(payee.clone(), payer.clone(), None);
 			let multi_id = vane_payment::Pallet::<T>::derive_multi_id(accounts.clone());
 
-			let multi_id_account_lookup = T::Lookup::unlookup(multi_id.clone());
-
 
 			let ref_no = vane_payment::Pallet::<T>::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
 
@@ -56,7 +54,7 @@ pub mod utils {
 			//if the multi_id is the same as previous Receipt just increment the total amount and add the txn_no amount
 
             let receipt =
-				vane_payment::TxnReceipt::<T>::new(payee.clone(), payer.clone(),multi_id_account_lookup, ref_no.clone(), amount.clone(),(amount),Some(currency));
+				vane_payment::TxnReceipt::<T>::new(payee.clone(), payer.clone(),multi_id.clone(), ref_no.clone(), amount.clone(),(amount),Some(currency));
 
 			// Store to each storage item for txntickets
 			// Useful for getting reference no for TXN confirmation
@@ -64,10 +62,10 @@ pub mod utils {
 
 			vane_payment::PayeeTxnReceipt::<T>::mutate(&payee, |p_vec|{
 				// Check if the multi_id already exists in the receipts and get its index of the receipt
-				let index = p_vec.iter().position(|receipt| receipt.multi_id == multi_id_account_lookup);
+				let index = p_vec.iter().position(|receipt| receipt.multi_id == multi_id);
 				if let Some(idx) = index {
 					// Get the receipt
-					let mut receipt = p_vec.get(idx).ok_or(Error::<T>::UnexpectedError)?;
+					let mut receipt = p_vec.get_mut(idx).ok_or(Error::<T>::UnexpectedError).unwrap();
 					receipt.update_txn(amount)
 
 				}else{
@@ -81,7 +79,7 @@ pub mod utils {
 			if let Some(receipt) = existing_payer_receipt {
 
 				vane_payment::PayerTxnReceipt::<T>::mutate(&payer, &payee, |receipt_inner|{
-					receipt_inner.update_txn(amount)
+					receipt_inner.clone().unwrap().update_txn(amount)
 				});
 
 			}else{

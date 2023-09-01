@@ -752,20 +752,15 @@ mod tests {
 				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
 			};
 
-			// assert_ok!(
-			// 	VanePalletVaneXcm::vane_transfer(
-			// 		parachain::RuntimeOrigin::signed(ALICE),
-			// 		ALICE.into(),
-			// 		BOB.into(),
-			// 		1000,
-			// 		Token::Dot,
-			// 		asset1
-			// 	)
-			// );
 
 			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
 		});
+	}
+
+	#[test]
+	fn vane_remote_soln1_custom_asset_derivitive_manual_xcm_confirm_pallet_works(){
+
 	}
 
 	#[test]

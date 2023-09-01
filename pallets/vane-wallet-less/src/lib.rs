@@ -48,7 +48,7 @@ pub mod pallet {
 		VanePay {
 			signer: T::AccountId,
 			payee: T::AccountId,
-			amount: BalanceOfPay<T>,
+			amount: u128,
 			resolver: Option<ResolverChoice>,
 		},
 		ConfirmPay {
@@ -120,7 +120,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			signer: T::AccountId,
 			payee: T::AccountId,
-			amount: BalanceOfPay<T>,
+			amount: u128,
 			password: Vec<u8>,
 		) -> DispatchResult {
 			// Check if it matches the registered delegated signer For security
