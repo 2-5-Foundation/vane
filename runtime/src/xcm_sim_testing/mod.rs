@@ -26,7 +26,7 @@ fn init_tracing() {
 		let _ = tracing_subscriber::fmt()
 			//.with_max_level(tracing::Level::TRACE)
 			//.with_env_filter("xcm=trace,system::events=trace") // Comment out this line to see all traces
-			//.with_test_writer()
+			.with_test_writer()
 			.init();
 	});
 }
@@ -143,6 +143,10 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 
 	}.assimilate_storage(&mut t).unwrap();
 
+	vane_xcm::GenesisConfig::<Runtime> {
+		para_account: Some(child_account_id(1)),
+	}.assimilate_storage(&mut t).unwrap();
+
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| {
 		sp_tracing::try_init_simple();
@@ -192,8 +196,9 @@ mod tests {
 	use frame_support::{assert_ok};
 	use frame_support::traits::fungibles::Inspect;
 	use sp_runtime::traits::Dispatchable;
-	use xcm::v3::OriginKind::SovereignAccount;
+	use xcm::v3::OriginKind::{Native, SovereignAccount};
 	use xcm_simulator::TestExt;
+	use vane_payment::helper::Token;
 
 	// Helper function for forming buy execution message
 	fn buy_execution<C>(fees: impl Into<MultiAsset>) -> Instruction<C> {
@@ -496,7 +501,6 @@ mod tests {
 		MockNet::reset();
 
 
-
 		Relay::execute_with(||{
 
 			// 1. Alice -> Parachain(1)
@@ -681,6 +685,85 @@ mod tests {
 
 	}
 
+	#[test]
+	fn vane_remote_soln1_custom_asset_derivitive_manual_xcm_pallet_works(){
+
+		init_tracing();
+
+		MockNet::reset();
+
+		// test AliasOrigin Instruction
+		Relay::execute_with(||{
+			println!("Parent Account : {:?}",parent_account_id());
+
+			println!("Parent Account ALICE : {:?}",parent_account_account_id(ALICE));
+			// 1. Alice -> Parachain(1)
+			assert_ok!(
+				RelayChainPalletBalances::transfer_keep_alive(
+					relay_chain::RuntimeOrigin::signed(ALICE),
+					child_account_id(1).into(),
+					1000
+				)
+			);
+
+			let asset1 = MultiLocation{
+				parents: 0,
+				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
+			};
+
+			// 2. Test remote signed transact instruction
+			let test_transfer_call = parachain::RuntimeCall::VaneXcm(vane_xcm::Call::vane_transfer {
+				payee: BOB.into(),
+				amount: 1000,
+				currency: Token::Dot,
+				asset_id: asset1,
+			});
+
+			let message = Xcm::<()>(vec![
+				DescendOrigin(AccountId32 {network: None, id: ALICE.into() }.into()), // look into remote derived accounts
+				Transact {
+					origin_kind: SovereignAccount,
+					require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024),
+					call: test_transfer_call.encode().into(),
+				}
+			]);
+
+			assert_ok!(
+				RelayChainPalletXcm::send(
+					relay_chain::RuntimeOrigin::signed(ALICE),
+					Box::new(X1(Parachain(1)).into()),
+					Box::new(VersionedXcm::V3(message))
+				)
+			);
+
+			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
+
+		});
+
+		println!("Vane Area");
+
+		Vane::execute_with(||{
+
+			let asset1 = MultiLocation{
+				parents: 0,
+				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
+			};
+
+			// assert_ok!(
+			// 	VanePalletVaneXcm::vane_transfer(
+			// 		parachain::RuntimeOrigin::signed(ALICE),
+			// 		ALICE.into(),
+			// 		BOB.into(),
+			// 		1000,
+			// 		Token::Dot,
+			// 		asset1
+			// 	)
+			// );
+
+			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
+
+		});
+	}
 
 	#[test]
 	fn vane_remote_soln2_works(){

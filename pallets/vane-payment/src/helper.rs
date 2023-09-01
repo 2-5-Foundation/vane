@@ -139,7 +139,7 @@ pub mod utils {
 		PayeeMisbehaviour,
 	}
 
-	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+	#[derive(Encode, Decode, Clone, PartialEq, Eq,MaxEncodedLen, RuntimeDebug, TypeInfo)]
 	pub enum Token {
 		Dot,
 		Usdt

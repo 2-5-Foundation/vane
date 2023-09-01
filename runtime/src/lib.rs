@@ -697,45 +697,7 @@ parameter_types! {
 // 	}
 // }
 
-// pub struct AssetAuthority;
-// impl EnsureOriginWithArg<RuntimeOrigin, Option<u32>> for AssetAuthority {
-// 	type Success = ();
 
-// 	fn try_origin(
-// 		origin: RuntimeOrigin,
-// 		_asset_id: &Option<u32>,
-// 	) -> Result<Self::Success, RuntimeOrigin> {
-// 		Ok(())
-// 	}
-
-// }
-
-// impl orml_asset_registry::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type CustomMetadata = ();
-// 	type AssetId = u32;
-// 	type AuthorityOrigin = AssetAuthority; // For now is anyone , later will make this to be more rigid
-// 	type AssetProcessor = orml_asset_registry::SequentialId<Runtime>;
-// 	type Balance = Balance;
-// 	type WeightInfo = weights::vane_asset_weights::SubstrateWeight<Runtime>;
-// }
-
-// impl orml_xtokens::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type Balance = Balance;
-// 	type CurrencyId = u32;
-// 	type SelfLocation = SelfLocation;
-// 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>; // We are not focused on executing XCM locally for now
-// 	type CurrencyIdConvert = TokenIdConvert;
-// 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
-// 	type BaseXcmWeight = ();
-// 	type MinXcmFee = ParachainMinFee;
-// 	type UniversalLocation = UniversalLocation;
-// 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
-// 	type MultiLocationsFilter = ();
-// 	type ReserveProvider = AbsoluteReserveProvider; // Not using reserve transfer ATM
-// 	type XcmExecutor = XcmExecutor<XcmConfig>;
-// }
 
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

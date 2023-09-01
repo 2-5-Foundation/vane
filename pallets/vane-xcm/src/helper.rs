@@ -5,9 +5,11 @@ use super::pallet::*;
 use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::*;
 pub use utils::*;
+use pallet_assets;
 
 pub mod utils {
-    use frame_system::RawOrigin;
+	use frame_support::traits::UnfilteredDispatchable;
+	use frame_system::RawOrigin;
     use sp_runtime::{MultiAddress, traits::StaticLookup};
     use vane_payment::helper::Token;
     use xcm::{
@@ -21,11 +23,32 @@ pub mod utils {
     };
     use sp_std::{vec::Vec,vec};
     use sp_std::boxed::Box;
-    
-    use super::*;
-    
+	use xcm::prelude::{GeneralIndex, PalletInstance, X2};
+
+	use super::*;
+
     type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
-    
+
+	#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+	pub struct Receipt<T: Config> {
+		pub payee: T::AccountId,
+		pub multi_sig: T::AccountId,
+		pub amount: u128,
+		pub token: Token
+	}
+
+	impl<T: Config> Receipt<T> {
+		pub fn new(payee: T::AccountId, multi_sig: T::AccountId, amount: u128, token: Token) -> Self {
+			Self {
+				payee,
+				multi_sig,
+				amount,
+				token,
+			}
+		}
+	}
+
     impl<T: Config> Pallet<T>{
         pub fn vane_multisig_record(
             payer: T::AccountId,
@@ -34,7 +57,11 @@ pub mod utils {
             currency: Token
         ) -> Result<T::AccountId,Error<T>>{
 
-            let accounts = vane_payment::AccountSigners::<T>::new(payee.clone(), payer.clone(), None);
+			// ****** CRUCIAL ******
+			// Check the balance receipt in Vane Soverign Account before proceeding
+
+
+			let accounts = vane_payment::AccountSigners::<T>::new(payee.clone(), payer.clone(), None);
 			let multi_id = vane_payment::Pallet::<T>::derive_multi_id(accounts.clone());
 
             let ref_no = vane_payment::Pallet::<T>::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
@@ -63,52 +90,27 @@ pub mod utils {
 
 
         pub fn vane_xcm_transfer_dot(
-            origin: OriginFor<T>,
             amount: u128,
-            multi_id: T::AccountId // Multi Id Account
-        ) -> DispatchResult{
+            multi_id: AccountIdLookupOf<T>, // Multi Id Account
+			asset_id: T::AssetIdParameter
+		) -> DispatchResult {
 
-            // Construct an XCM message vector to be executed at RelayChain
-            // 1. Withdraw Asset
-            // 2. Buy Execution
-            // 3. Deposit Asset
-            let payee:[u8;32] = multi_id.encode().try_into().unwrap();
-            let dest = xcm::VersionedMultiLocation::V3(MultiLocation::parent());
 
-            // We dont put error handling atm
-            let message = VersionedXcm::<()>::V3(Xcm(
-                vec![
-                    // put to holding register
-                    Instruction::<()>::WithdrawAsset(MultiAssets::from( vec![MultiAsset{
-                        id: AssetId::Concrete(MultiLocation::here()),
-                        fun: Fungibility::Fungible(amount)
-                    }])),
+			// Deposit Amount to MultiSig Account
+			let issuer = ParaAccount::<T>::get().unwrap();
 
-                    // buy weight for xcm execution
-                    Instruction::<()>::BuyExecution {
-                        fees: MultiAsset{
-                            id: AssetId::Concrete(MultiLocation::here()),
-                            fun: Fungibility::Fungible(amount)
-                        },
-                        weight_limit: WeightLimit::Unlimited // At the moment we dont restrict how much weight should be used, xcm message should use as much weight as it needs
-                    },
-                    // Add Deposit Asset to vane parachain soverign account as fees
+			let amount: <T as pallet_assets::Config>::Balance = amount.try_into().map_err(|_| Error::<T>::UnexpectedError)? ;
 
-                    // Deposit funds to beneficiary address from holding register
-                    Instruction::<()>::DepositAsset {
-                        assets: MultiAssetFilter::Wild(WildMultiAsset::All),
-                        beneficiary: MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 {
-                            network: None,
-                            id: payee.into()
-                        })}
-                    }
-                ]
-            ));
-                
-            
-            pallet_xcm::Pallet::<T>::send(origin, Box::from(dest), Box::from(message))?;
-            // Event
-            
+			<pallet_assets::Pallet<T>>::mint(
+				RawOrigin::Signed(issuer).into(),
+				asset_id,
+				multi_id,
+				amount // handle this error
+			)?;
+
+
+			// Event
+
             Ok(())
         }
 

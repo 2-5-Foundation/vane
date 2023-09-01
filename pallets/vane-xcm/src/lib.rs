@@ -2,36 +2,37 @@
 
 
 pub use pallet::*;
-mod helper;
+pub mod helper;
 
 
 
 
 #[frame_support::pallet]
 mod pallet{
+	use xcm::prelude::{GeneralIndex, PalletInstance,MultiLocation, X2};
+	use log;
 	use frame_support::Blake2_128;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use pallet_xcm;
 	use vane_payment;
-	use crate::helper;
+	use sp_runtime::traits::{StaticLookup};
+	use frame_support::dispatch::RawOrigin;
 
-	use frame_support::Blake2_128Concat;
 
 	use frame_support::pallet_prelude::*;
-	use frame_support::parameter_types;
 	use frame_system::pallet_prelude::*;
 	use vane_payment::helper::Token;
 	use vane_payment::{Confirm,ConfirmedSigners};
 	use sp_std::vec::Vec;
-	use crate::Event::TestStored;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_xcm::Config + vane_payment::Config {
+	pub trait Config: frame_system::Config + pallet_xcm::Config + vane_payment::Config + pallet_assets::Config {
 
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 	}
 
+	type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -43,11 +44,31 @@ mod pallet{
 	#[pallet::storage]
 	pub type TestStorage<T: Config> = StorageMap<_,Blake2_128, T::AccountId, u32,ValueQuery>;
 
+	#[pallet::storage]
+	pub type ParaAccount<T: Config> = StorageValue<_,T::AccountId>;
+
+
+	#[pallet::genesis_config]
+	#[derive(frame_support::DefaultNoBound)]
+	pub struct GenesisConfig<T: Config>{
+		pub para_account: Option<T::AccountId>
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+		fn build(&self){
+			// panicks if account is not present
+			let acc = &self.para_account.clone().unwrap();
+			ParaAccount::<T>::put(acc);
+		}
+	}
+
 	#[pallet::error]
 	pub enum Error<T>{
 		NotEnoughFees,
 		UnexpectedError,
-		NotSupportedYet
+		NotSupportedYet,
+		NotTheCaller
 	}
 
 	#[pallet::event]
@@ -74,7 +95,7 @@ mod pallet{
 			timestamp: BlockNumberFor<T>,
 			reference_no: Vec<u8>,
 		},
-		TestStored
+		TestStored,
 
 	}
 
@@ -86,19 +107,38 @@ mod pallet{
 		#[pallet::weight(10)]
 		pub fn vane_transfer(
 			origin: OriginFor<T>,
-			payee: T::AccountId,
+			//payer: AccountIdLookupOf<T>,
+			payee: AccountIdLookupOf<T>,
 			amount: u128, // Fungibility
-			currency: Token
-		) -> DispatchResult{
-			let payer = ensure_signed(origin.clone())?;
+			currency: Token,
+			asset_id: T::AssetIdParameter
 
+		) -> DispatchResult{
+			// log the origin
+
+			let caller = ensure_signed(origin.clone())?;
+			log::info!(
+				target: "",
+				" Caller {:?}",
+				caller,
+			);
+
+
+			let payee_acc = T::Lookup::lookup(payee.clone())?;
+
+			//ensure!( caller_acc == payer, Error::<T>::NotTheCaller);
 			// Construct a Multisig Account
-			let multi_id = Self::vane_multisig_record(payer, payee, amount, currency.clone())?;
+
+			let multi_id = Self::vane_multisig_record(caller, payee_acc, amount, currency.clone())?;
 
 			// Check the Token type
 			match currency {
 				Token::Dot => {
-					Self::vane_transfer(origin,multi_id,amount,currency)?;
+
+					let multi_id_acc = T::Lookup::unlookup(multi_id);
+					let asset = asset_id;
+
+					Self::vane_xcm_transfer_dot(amount,multi_id_acc,asset)?;
 				},
 				Token::Usdt => {
 					Err(Error::<T>::NotSupportedYet)?
@@ -220,10 +260,8 @@ mod pallet{
 		pub fn test_storing(origin:OriginFor<T>,acc:T::AccountId,num:u32) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			TestStorage::<T>::set(&acc,num);
-			Self::deposit_event(TestStored);
 			Ok(())
 		}
-
 
 
 	}
@@ -232,6 +270,12 @@ mod pallet{
 		pub fn get_test_stored(account: T::AccountId) -> u32 {
 			let value = TestStorage::<T>::get(account);
 			value
+		}
+		pub fn record_receipt(origin:OriginFor<T>,sender:T::AccountId,payee: T::AccountId, amount: u128) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			ensure!(caller == sender, Error::<T>::NotTheCaller);
+
+			Ok(())
 		}
 	}
 
