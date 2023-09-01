@@ -156,24 +156,32 @@ pub mod utils {
 	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 
-	pub struct TxnTicket<T: Config> {
+	pub struct TxnReceipt<T: Config> {
 		payee: T::AccountId,
 		payer: T::AccountId,
+		pub multi_id: AccountIdLookupOf<T>,
 		amount: u128,
 		reference_no: Vec<u8>,
 		currency: Option<Token>,
+		no_txn: Vec<(u128)>,
 		pub xcm_status: XcmStatus
 	}
 
-	impl<T: Config> TxnTicket<T> {
+	impl<T: Config> TxnReceipt<T> {
 		pub fn new(
 			payee: T::AccountId,
 			payer: T::AccountId,
+			multi_id: AccountIdLookupOf<T>,
 			ref_no: Vec<u8>,
 			amount: u128,
+			txn: (u128),
 			currency:Option<Token>
 		) -> Self {
-			Self { payee, payer, reference_no: ref_no, amount,currency, xcm_status: XcmStatus::Tbc }
+			Self { payee, payer, reference_no: ref_no, amount,currency, no_txn: vec![txn], xcm_status: XcmStatus::Tbc, multi_id }
+		}
+
+		pub fn update_txn(&mut self, txn: (u128)){
+			self.no_txn.push(txn)
 		}
 	}
 
@@ -244,19 +252,21 @@ pub mod utils {
 			let accounts = AccountSigners::<T>::new(payee.clone(), payer.clone(), None);
 			let multi_id = Self::derive_multi_id(accounts.clone());
 
+			let multi_id_account_lookup = T::Lookup::unlookup(multi_id);
+
 			let ref_no = Self::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
 
 			AllowedSigners::<T>::insert(&payer, &ref_no, accounts);
 
-			let balance:u128 = amount.try_into().map_err(|_|Error::<T>::UnexpectedError)?;
+			let balance:u128 = amount.try_into().map_err(|_| Error::<T>::UnexpectedError)? as u128;
 
 			let ticket =
-				TxnTicket::<T>::new(payee.clone(), payer.clone(), ref_no.clone(), balance,currency);
+				TxnReceipt::<T>::new(payee.clone(), payer.clone(), ref_no.clone(),multi_id_account_lookup, balance,(balance),currency);
 			// Store to each storage item for txntickets
 			// Useful for getting refrence no for TXN confirmation
-			PayeeTxnTicket::<T>::mutate(&payee, |p_vec| p_vec.push(ticket.clone()));
+			PayeeTxnReceipt::<T>::mutate(&payee, |p_vec| p_vec.push(ticket.clone()));
 
-			PayerTxnTicket::<T>::mutate(&payer, &payee, |p_vec| p_vec.push(ticket.clone()));
+			PayerTxnReceipt::<T>::mutate(&payer, &payee, |p_vec| p_vec.push(ticket.clone()));
 
 			Self::create_multi_account(multi_id.clone())?;
 

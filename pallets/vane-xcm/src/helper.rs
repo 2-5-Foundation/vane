@@ -46,17 +46,49 @@ pub mod utils {
 			let accounts = vane_payment::AccountSigners::<T>::new(payee.clone(), payer.clone(), None);
 			let multi_id = vane_payment::Pallet::<T>::derive_multi_id(accounts.clone());
 
-            let ref_no = vane_payment::Pallet::<T>::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
+			let multi_id_account_lookup = T::Lookup::unlookup(multi_id.clone());
+
+
+			let ref_no = vane_payment::Pallet::<T>::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
 
 			vane_payment::AllowedSigners::<T>::insert(&payer, &ref_no, accounts);
 
-            let ticket =
-				vane_payment::TxnTicket::<T>::new(payee.clone(), payer.clone(), ref_no.clone(), amount.clone(),Some(currency));
-			// Store to each storage item for txntickets
-			// Useful for getting refrence no for TXN confirmation
-			vane_payment::PayeeTxnTicket::<T>::mutate(&payee, |p_vec| p_vec.push(ticket.clone()));
+			//if the multi_id is the same as previous Receipt just increment the total amount and add the txn_no amount
 
-			vane_payment::PayerTxnTicket::<T>::mutate(&payer, &payee, |p_vec| p_vec.push(ticket.clone()));
+            let receipt =
+				vane_payment::TxnReceipt::<T>::new(payee.clone(), payer.clone(),multi_id_account_lookup, ref_no.clone(), amount.clone(),(amount),Some(currency));
+
+			// Store to each storage item for txntickets
+			// Useful for getting reference no for TXN confirmation
+			// Start with the payee storage
+
+			vane_payment::PayeeTxnReceipt::<T>::mutate(&payee, |p_vec|{
+				// Check if the multi_id already exists in the receipts and get its index of the receipt
+				let index = p_vec.iter().position(|receipt| receipt.multi_id == multi_id_account_lookup);
+				if let Some(idx) = index {
+					// Get the receipt
+					let mut receipt = p_vec.get(idx).ok_or(Error::<T>::UnexpectedError)?;
+					receipt.update_txn(amount)
+
+				}else{
+					p_vec.push(receipt.clone())
+				}
+			});
+
+			// Update for Payer/Sender Txn receipt
+			let existing_payer_receipt = vane_payment::PayerTxnReceipt::<T>::get(&payer,&payee);
+
+			if let Some(receipt) = existing_payer_receipt {
+
+				vane_payment::PayerTxnReceipt::<T>::mutate(&payer, &payee, |receipt_inner|{
+					receipt_inner.update_txn(amount)
+				});
+
+			}else{
+
+				vane_payment::PayerTxnReceipt::<T>::insert(&payer,&payee,receipt);
+			}
+
 
 			vane_payment::Pallet::<T>::create_multi_account(multi_id.clone()).map_err(|_| Error::<T>::UnexpectedError)?;
 
@@ -99,11 +131,29 @@ pub mod utils {
 
 
         pub fn vane_xcm_confirm_transfer_dot(
+
             payee: T::AccountId,
-            amount: u128
+			multi_id: AccountIdLookupOf<T>,
+            amount: u128,
+			asset_id: T::AssetIdParameter
+
         ) -> DispatchResult{
 
+			let issuer = ParaAccount::<T>::get().unwrap();
 
+			// Burn the asset in the multi_id account
+			let amount: <T as pallet_assets::Config>::Balance = amount.try_into().map_err(|_| Error::<T>::UnexpectedError)? ;
+
+			<pallet_assets::Pallet<T>>::burn(
+				RawOrigin::Signed(issuer).into(),
+				asset_id,
+				multi_id,
+				amount
+			)?;
+			// Change the status in the ticket to be Sent
+
+
+			// Send XCM instruction to send funds from Parachain sovereign account to payee acount
 
 
 

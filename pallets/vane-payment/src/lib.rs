@@ -30,10 +30,10 @@ pub mod helper;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use crate::helper::TxnTicketOrder;
+	use crate::helper::{TxnTicketOrder};
 
 	pub use super::helper::{
-		AccountSigners, CallExecuted, Confirm, ResolverChoice, RevertReasons, TxnTicket,
+		AccountSigners, CallExecuted, Confirm, ResolverChoice, RevertReasons, TxnReceipt,
 	};
 	use frame_support::{
 		pallet, pallet_prelude::*, parameter_types, traits::tokens::currency::Currency,
@@ -68,6 +68,9 @@ pub mod pallet {
 		//type Order: OrderTrait + TypeInfo + Decode + Encode + Clone + PartialEq + Debug;
 		type Currency: Currency<Self::AccountId>;
 	}
+
+	pub type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
+
 
 	// Not yet implemented
 	#[pallet::storage]
@@ -126,22 +129,21 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::unbounded]
-	pub type PayerTxnTicket<T: Config> = StorageDoubleMap<
+	pub type PayerTxnReceipt<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		T::AccountId,
 		Blake2_128Concat,
 		T::AccountId,
-		Vec<TxnTicket<T>>,
-		ValueQuery,
+		TxnReceipt<T>
 	>;
 
 	// TxnTicket Payee
 	// This is used to notify the payee as their is new pending transaction which needs confirmation
 	#[pallet::storage]
 	#[pallet::unbounded]
-	pub type PayeeTxnTicket<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, Vec<TxnTicket<T>>, ValueQuery>;
+	pub type PayeeTxnReceipt<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, Vec<TxnReceipt<T>>, ValueQuery>;
 
 	// Ignore the Order txn at the moment
 	// Ticket for Order transactions
