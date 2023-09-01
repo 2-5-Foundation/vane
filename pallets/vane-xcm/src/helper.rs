@@ -29,25 +29,7 @@ pub mod utils {
 
     type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
-	#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub struct Receipt<T: Config> {
-		pub payee: T::AccountId,
-		pub multi_sig: T::AccountId,
-		pub amount: u128,
-		pub token: Token
-	}
 
-	impl<T: Config> Receipt<T> {
-		pub fn new(payee: T::AccountId, multi_sig: T::AccountId, amount: u128, token: Token) -> Self {
-			Self {
-				payee,
-				multi_sig,
-				amount,
-				token,
-			}
-		}
-	}
 
     impl<T: Config> Pallet<T>{
         pub fn vane_multisig_record(
@@ -121,45 +103,10 @@ pub mod utils {
             amount: u128
         ) -> DispatchResult{
 
-            // Check if we can limit only certain origin to be able to execute this messages from multi_id account
-            // Construct an XCM message vector to be executed at RelayChain
-            // 1. Transact instruction with origin a signed(multi_id)
 
-            let payee_inner:[u8;32] = payee.clone().encode().try_into().unwrap();
 
-            let dest = xcm::VersionedMultiLocation::V3(MultiLocation::parent());
 
-            let message = VersionedXcm::<()>::V3(Xcm(
-                vec![
-                    // put to holding register
-                    Instruction::<()>::WithdrawAsset(MultiAssets::from( vec![MultiAsset{
-                        id: AssetId::Concrete(MultiLocation::here()),
-                        fun: Fungibility::Fungible(amount)
-                    }])),
 
-                    // buy weight for xcm execution
-                    Instruction::<()>::BuyExecution {
-                        fees: MultiAsset{
-                            id: AssetId::Concrete(MultiLocation::here()),
-                            fun: Fungibility::Fungible(amount)
-                        },
-                        weight_limit: WeightLimit::Unlimited // At the moment we dont restrict how much weight should be used, xcm message should use as much weight as it needs
-                    },
-                    // Add Deposit Asset to vane parachain soverign account as fees
-
-                    // Deposit funds to beneficiary address from holding register
-                    Instruction::<()>::DepositAsset {
-                        assets: MultiAssetFilter::Wild(WildMultiAsset::All),
-                        beneficiary: MultiLocation { parents: 0, interior: Junctions::X1(Junction::AccountId32 {
-                            network: None,
-                            id: payee_inner.into()
-                        })}
-                    }
-                ]
-            ));
-
-            // pallet xcm Call send
-            pallet_xcm::Pallet::<T>::send(RawOrigin::Signed(payee).into(), Box::from(dest), Box::from(message))?;
             // Event
 
             Ok(())

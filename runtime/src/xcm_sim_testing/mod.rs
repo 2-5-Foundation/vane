@@ -697,6 +697,9 @@ mod tests {
 			println!("Parent Account : {:?}",parent_account_id());
 
 			println!("Parent Account ALICE : {:?}",parent_account_account_id(ALICE));
+
+			println!("Parachain Account : {:?}", child_account_id(1));
+
 			// 1. Alice -> Parachain(1)
 			assert_ok!(
 				RelayChainPalletBalances::transfer_keep_alive(

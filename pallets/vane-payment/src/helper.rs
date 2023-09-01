@@ -145,6 +145,13 @@ pub mod utils {
 		Usdt
 	}
 
+	#[derive(Encode, Decode, Clone, PartialEq, Eq,MaxEncodedLen, RuntimeDebug, TypeInfo)]
+	pub enum XcmStatus {
+		Sent,
+		Completed,
+		Tbc
+	}
+
 
 	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
@@ -154,7 +161,8 @@ pub mod utils {
 		payer: T::AccountId,
 		amount: u128,
 		reference_no: Vec<u8>,
-		currency: Option<Token>
+		currency: Option<Token>,
+		pub xcm_status: XcmStatus
 	}
 
 	impl<T: Config> TxnTicket<T> {
@@ -165,7 +173,7 @@ pub mod utils {
 			amount: u128,
 			currency:Option<Token>
 		) -> Self {
-			Self { payee, payer, reference_no: ref_no, amount,currency }
+			Self { payee, payer, reference_no: ref_no, amount,currency, xcm_status: XcmStatus::Tbc }
 		}
 	}
 

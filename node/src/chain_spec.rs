@@ -3,8 +3,14 @@ use vane_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{sr25519, sr25519::Pair as PairType, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
+use xcm::prelude::*;
+
+
+use codec::{Encode,Decode};
+use sp_core::{crypto::{Ss58AddressFormatRegistry, Ss58Codec}};
+use sp_runtime::{MultiSigner};
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec =
@@ -92,8 +98,8 @@ pub fn development_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 					get_account_id_from_seed::<sr25519::Public>("Charlie"),
 					get_account_id_from_seed::<sr25519::Public>("Dave"),
-					
-				
+
+
 				],
 				Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
 				1000.into(),
@@ -142,8 +148,8 @@ pub fn local_testnet_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 					get_account_id_from_seed::<sr25519::Public>("Charlie"),
 					get_account_id_from_seed::<sr25519::Public>("Dave"),
-					
-				
+
+
 				],
 				Some(get_account_id_from_seed::<sr25519::Public>("Alice")),
 				2000.into(),
@@ -167,6 +173,38 @@ pub fn local_testnet_config() -> ChainSpec {
 	)
 }
 
+#[derive(Encode,Decode)]
+pub struct RococoId(u32);
+
+fn calculate_sovereign_account<Pair>(
+	para_id: u32,
+) -> Result<String, Box<dyn std::error::Error>>
+	where
+		Pair: sp_core::Pair,
+		Pair::Public: Into<MultiSigner>,
+{
+	// Scale encoded para_id
+	let id = RococoId(para_id);
+	let encoded_id = hex::encode(id.encode());
+
+	// Prefix para or sibl
+	let prefix = hex::encode("para");
+
+	// Join both strings and the 0x at the beginning
+	let encoded_key = "0x".to_owned() + &prefix + &encoded_id;
+
+	// Fill the rest with 0s
+	let public_str = format!("{:0<width$}", encoded_key, width = 64 + 2);
+
+	// Convert hex public key to ss58 address
+	let public = array_bytes::hex2bytes(&public_str).expect("Failed to convert hex to bytes");
+	let public_key = Pair::Public::try_from(&public)
+		.map_err(|_| "Failed to construct public key from given hex")?;
+
+	Ok(public_key.to_ss58check_with_version(Ss58AddressFormatRegistry::SubstrateAccount.into()))
+}
+
+
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
@@ -175,7 +213,32 @@ fn testnet_genesis(
 ) -> vane_runtime::GenesisConfig {
 	let alice = get_from_seed::<sr25519::Public>("Alice");
 	let bob = get_from_seed::<sr25519::Public>("Bob");
-	vane_runtime::GenesisConfig {
+
+	let dot_asset = MultiLocation{
+		parents: 0,
+		interior: X2(PalletInstance(10),GeneralIndex(1)).into()
+	};
+
+	let usdt_asset = MultiLocation{
+		parents: 0,
+		interior: X2(PalletInstance(10),GeneralIndex(2)).into()
+	};
+
+	let usdc_asset = MultiLocation{
+		parents: 0,
+		interior: X2(PalletInstance(10),GeneralIndex(3)).into()
+	};
+
+	let v_dot = "vDOT".as_bytes().to_vec();
+	let _v_usdt = "vUSDT".as_bytes().to_vec();
+	let _v_usdc = "vUSDC".as_bytes().to_vec();
+
+	// Calculate parachain Soverign account id
+	let sovererign_acount = calculate_sovereign_account::<PairType>(id.into()).unwrap();
+	let para_account = sp_runtime::AccountId32::from_ss58check(&sovererign_acount).unwrap();
+
+
+	vane_runtime::RuntimeGenesisConfig {
 		system: vane_runtime::SystemConfig {
 			code: vane_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
@@ -185,17 +248,32 @@ fn testnet_genesis(
 		balances: vane_runtime::BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
 		},
-		
-		
-		parachain_info: vane_runtime::ParachainInfoConfig { 
+
+		vane_assets: vane_runtime::VaneAssetsConfig {
+
+			metadata: vec![(dot_asset,v_dot.clone(), v_dot,10)],
+
+			assets: vec![(dot_asset,para_account.clone(),true,1)],
+
+			accounts: vec![(dot_asset,para_account.clone(),0)]
+
+		},
+
+		vane_xcm: vane_runtime::VaneXcmConfig {
+			para_account: Some(para_account)
+		},
+
+		parachain_info: vane_runtime::ParachainInfoConfig {
 			parachain_id: id,
 			..Default::default()
 		},
+
 		collator_selection: vane_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
 			..Default::default()
 		},
+
 		session: vane_runtime::SessionConfig {
 			keys: invulnerables
 				.into_iter()
@@ -224,6 +302,69 @@ fn testnet_genesis(
 		},
 		transaction_payment: Default::default(),
 		// vane_assets: Default::default(),
-		
+
 	}
 }
+
+
+// Vane Live Network
+// fn live_genesis(
+// 	invulnerables: Vec<(AccountId, AuraId)>,
+// 	endowed_accounts: Vec<AccountId>,
+// 	root_key: Option<AccountId>,
+// 	id: ParaId,
+// ) -> vane_runtime::GenesisConfig {
+// 	let alice = get_from_seed::<sr25519::Public>("Alice");
+// 	let bob = get_from_seed::<sr25519::Public>("Bob");
+// 	vane_runtime::GenesisConfig {
+// 		system: vane_runtime::SystemConfig {
+// 			code: vane_runtime::WASM_BINARY
+// 				.expect("WASM binary was not build, please build it!")
+// 				.to_vec(),
+// 			..Default::default()
+// 		},
+// 		balances: vane_runtime::BalancesConfig {
+// 			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+// 		},
+//
+//
+// 		parachain_info: vane_runtime::ParachainInfoConfig {
+// 			parachain_id: id,
+// 			..Default::default()
+// 		},
+// 		collator_selection: vane_runtime::CollatorSelectionConfig {
+// 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
+// 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
+// 			..Default::default()
+// 		},
+// 		session: vane_runtime::SessionConfig {
+// 			keys: invulnerables
+// 				.into_iter()
+// 				.map(|(acc, aura)| {
+// 					(
+// 						acc.clone(),                 // account id
+// 						acc,                         // validator id
+// 						template_session_keys(aura), // session keys
+// 					)
+// 				})
+// 				.collect(),
+// 		},
+// 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
+// 		// of this.
+// 		aura: Default::default(),
+// 		aura_ext: Default::default(),
+// 		sudo: vane_runtime::SudoConfig { key: root_key },
+// 		council: vane_runtime::CouncilConfig {
+// 			phantom: std::marker::PhantomData,
+// 			members: endowed_accounts.iter().take(4).map(|acc| acc.clone()).collect::<Vec<_>>(),
+// 		},
+// 		parachain_system: Default::default(),
+// 		polkadot_xcm: vane_runtime::PolkadotXcmConfig {
+// 			safe_xcm_version: Some(SAFE_XCM_VERSION),
+// 			..Default::default()
+// 		},
+// 		transaction_payment: Default::default(),
+// 		// vane_assets: Default::default(),
+//
+// 	}
+// }
