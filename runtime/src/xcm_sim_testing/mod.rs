@@ -168,7 +168,7 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 		balances: vec![
 			(ALICE, 100_000),
 			//(child_account_id(1), INITIAL_BALANCE),
-			(BOB,100_000)
+
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -682,6 +682,7 @@ mod tests {
 				relay_chain::Balances::free_balance(BOB),
 				1000 + 100_000
 			);
+
 		})
 
 	}
@@ -763,16 +764,7 @@ mod tests {
 		// test AliasOrigin Instruction
 		Relay::execute_with(||{
 
-
 			// 1. Alice -> Parachain(1)
-			assert_ok!(
-				RelayChainPalletBalances::transfer_keep_alive(
-					relay_chain::RuntimeOrigin::signed(ALICE),
-					child_account_id(1).into(),
-					1000
-				)
-			);
-
 			assert_ok!(
 				RelayChainPalletBalances::transfer_keep_alive(
 					relay_chain::RuntimeOrigin::signed(ALICE),
@@ -784,7 +776,7 @@ mod tests {
 			// Check Sovereign Account balance
 			assert_eq!(
 				relay_chain::Balances::free_balance(child_account_id(1)),
-				2000
+				1000
 			);
 
 			let asset1 = MultiLocation{
@@ -816,15 +808,7 @@ mod tests {
 					Box::new(VersionedXcm::V3(message.clone()))
 				)
 			);
-			assert_ok!(
-				RelayChainPalletXcm::send(
-					relay_chain::RuntimeOrigin::signed(ALICE),
-					Box::new(X1(Parachain(1)).into()),
-					Box::new(VersionedXcm::V3(message))
-				)
-			);
 
-			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
 		});
 
@@ -832,8 +816,6 @@ mod tests {
 
 		Vane::execute_with(||{
 			// Receiving the msg and executing
-			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
-
 		});
 
 		Vane::execute_with(||{
@@ -846,25 +828,84 @@ mod tests {
 			// confirm the transaction
 			// Payee confirming on vane chain
 			// get the reference_no
-			let receipt = VanePalletVaneXcm::get_txn_receipt(ALICE,BOB);
+			//let receipt = vane_payment::PayerTxnReceipt::<parachain::Runtime>::get(ALICE,BOB);
 
 			let tt = vane_payment::PayeeTxnReceipt::<parachain::Runtime>::get(BOB);
 
-			println!(" Receipts: {:#?}",tt);
+			//println!(" Receipts: {:#?}",tt[0].reference_no);
 
-			// assert_ok!(
-			//  VanePalletVaneXcm::vane_confirm(
-			// 		parachain::RuntimeOrigin::signed(BOB),
-			// 		Confirm::Payee,
-			// 		receipt.reference_no,
-			// 		receipt.amount,
-			// 		asset1
-			// 	)
-			// );
+			assert_ok!(
+			 VanePalletVaneXcm::vane_confirm(
+					parachain::RuntimeOrigin::signed(BOB),
+					Confirm::Payee,
+					tt[0].reference_no.to_vec(),
+					tt[0].amount,
+					asset1
+				)
+			);
 
+		});
+
+		println!("Relay Area");
+
+		Relay::execute_with(||{
+			// Confirm for Payer
+			let asset1 = MultiLocation{
+				parents: 0,
+				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
+			};
+
+			let hardcoded_ref = vec![ 179, 58, 27, 164, 106, 103];
+			// 2. Test remote signed transact instruction
+			let test_confirm_call = parachain::RuntimeCall::VaneXcm(vane_xcm::Call::vane_confirm {
+				who: Confirm::Payer,
+				amount: 1000, // hardcoded but it should be taken from receipt
+				asset_id: asset1,
+				reference_no: hardcoded_ref,
+			});
+
+			let message = Xcm::<()>(vec![
+				DescendOrigin(AccountId32 {network: None, id: ALICE.into() }.into()), // look into remote derived accounts
+				Transact {
+					origin_kind: SovereignAccount,
+					require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024),
+					call: test_confirm_call.encode().into(),
+				}
+			]);
+
+			assert_ok!(
+				RelayChainPalletXcm::send(
+					relay_chain::RuntimeOrigin::signed(ALICE),
+					Box::new(X1(Parachain(1)).into()),
+					Box::new(VersionedXcm::V3(message.clone()))
+				)
+			);
+
+			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
+
+		});
+
+		println!("Vane Area");
+
+		Vane::execute_with(||{
+			// Execution of Payer confirmation
 			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
 		});
+
+		// Check for BOB balance in Relay Chain
+		Relay::execute_with(||{
+			assert_eq!(
+				relay_chain::Balances::free_balance(BOB),
+				999
+			);
+			assert_eq!(
+				relay_chain::Balances::free_balance(child_account_id(1)),
+				1
+			);
+		})
+
+
 	}
 
 	#[test]

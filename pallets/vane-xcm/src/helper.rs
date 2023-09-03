@@ -24,7 +24,8 @@ pub mod utils {
     };
     use sp_std::{vec::Vec,vec};
     use sp_std::boxed::Box;
-	use xcm::prelude::{GeneralIndex, PalletInstance, X2};
+	use xcm::latest::Parent;
+	use xcm::prelude::{AccountId32, GeneralIndex, Here, PalletInstance, TransferAsset, X2};
 
 	use super::*;
 
@@ -153,7 +154,7 @@ pub mod utils {
 
 
         pub fn vane_xcm_confirm_transfer_dot(
-
+			payer: T::AccountId,
             payee: T::AccountId,
 			multi_id: AccountIdLookupOf<T>,
             amount: u128,
@@ -172,14 +173,30 @@ pub mod utils {
 				multi_id,
 				amount
 			)?;
-			// Change the status in the ticket to be Sent
+
+			// Change the status in the payer receipt
 
 
 			// Send XCM instruction to send funds from Parachain sovereign account to payee acount
+			let payee_id:[u8;32] = payee.encode().try_into().unwrap();
 
+			let message = Xcm::<()>(vec![
+				// Transfer equivalent funds from Sovereign Account to payee account
+				TransferAsset {
+					assets: (Here, 999).into(), // We must have a function to calculate fees
+					beneficiary: (AccountId32 {network: None, id: payee_id}).into(),
+				}
+			]);
+
+			<pallet_xcm::Pallet<T>>::send_xcm(Here,Parent,message).map_err(|_| Error::<T>::ErrorSendingXcm)?;
+
+			// Change the status in the payee receipt
 
 
             // Event
+			Self::deposit_event(
+				Event::MessageTransferedToPolkadot
+			);
 
             Ok(())
         }

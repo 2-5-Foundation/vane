@@ -68,7 +68,8 @@ mod pallet{
 		NotEnoughFees,
 		UnexpectedError,
 		NotSupportedYet,
-		NotTheCaller
+		NotTheCaller,
+		ErrorSendingXcm
 	}
 
 	#[pallet::event]
@@ -95,6 +96,7 @@ mod pallet{
 			timestamp: BlockNumberFor<T>,
 			reference_no: Vec<u8>,
 		},
+		MessageTransferedToPolkadot,
 		TestStored,
 
 	}
@@ -225,7 +227,7 @@ mod pallet{
 
 						let multi_id_multi_acc = T::Lookup::unlookup(allowed_multi_id);
 
-						Self::vane_xcm_confirm_transfer_dot(payee,multi_id_multi_acc,amount,asset_id)?
+						Self::vane_xcm_confirm_transfer_dot(payer,payee,multi_id_multi_acc,amount,asset_id)?
 
 					} else {
 						return Err(vane_payment::Error::<T>::FailedToMatchAccounts.into());
@@ -280,13 +282,6 @@ mod pallet{
 			Ok(())
 		}
 
-		// Storage getters
-		pub fn get_txn_receipt(payer: T::AccountId, payee: T::AccountId ) -> Result<TxnReceipt<T>, vane_payment::Error<T>> {
-
-				let receipt = vane_payment::PayerTxnReceipt::<T>::get(&payer,&payee).ok_or(vane_payment::Error::<T>::TxnReceiptUnavailable)?;
-				Ok(receipt)
-
-		}
 	}
 
 }
