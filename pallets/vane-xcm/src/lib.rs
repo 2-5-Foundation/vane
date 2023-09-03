@@ -23,7 +23,7 @@ mod pallet{
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use vane_payment::helper::Token;
-	use vane_payment::{Confirm,ConfirmedSigners};
+	use vane_payment::{Confirm, ConfirmedSigners, TxnReceipt};
 	use sp_std::vec::Vec;
 
 	#[pallet::config]
@@ -32,7 +32,7 @@ mod pallet{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 	}
 
-	type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
+	pub type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -81,8 +81,8 @@ mod pallet{
 		},
 		DotXcmTransferInitiated {
 			time: BlockNumberFor<T>,
-			sender: T::AccountId,
-			multi_id: T::AccountId
+			amount: u128,
+			multi_id: AccountIdLookupOf<T>
 			// TXN HASH for Dot side txn_hash: T::Hash,
 		},
 		PayerAddressConfirmedXcm {
@@ -107,7 +107,6 @@ mod pallet{
 		#[pallet::weight(10)]
 		pub fn vane_transfer(
 			origin: OriginFor<T>,
-			//payer: AccountIdLookupOf<T>,
 			payee: AccountIdLookupOf<T>,
 			amount: u128, // Fungibility
 			currency: Token,
@@ -135,10 +134,10 @@ mod pallet{
 			match currency {
 				Token::Dot => {
 
-					let multi_id_acc = T::Lookup::unlookup(multi_id);
+					let multi_id_acc = T::Lookup::unlookup(multi_id.clone());
 					let asset = asset_id;
 
-					Self::vane_xcm_transfer_dot(amount,multi_id_acc,asset)?;
+					Self::vane_xcm_transfer_dot(amount,multi_id_acc,multi_id,asset)?;
 				},
 				Token::Usdt => {
 					Err(Error::<T>::NotSupportedYet)?
@@ -279,6 +278,14 @@ mod pallet{
 			ensure!(caller == sender, Error::<T>::NotTheCaller);
 
 			Ok(())
+		}
+
+		// Storage getters
+		pub fn get_txn_receipt(payer: T::AccountId, payee: T::AccountId ) -> Result<TxnReceipt<T>, vane_payment::Error<T>> {
+
+				let receipt = vane_payment::PayerTxnReceipt::<T>::get(&payer,&payee).ok_or(vane_payment::Error::<T>::TxnReceiptUnavailable)?;
+				Ok(receipt)
+
 		}
 	}
 

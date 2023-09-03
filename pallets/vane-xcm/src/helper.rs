@@ -8,6 +8,7 @@ pub use utils::*;
 use pallet_assets;
 
 pub mod utils {
+	use core::ops::Add;
 	use frame_support::traits::UnfilteredDispatchable;
 	use frame_system::RawOrigin;
     use sp_runtime::{MultiAddress, traits::StaticLookup};
@@ -27,7 +28,6 @@ pub mod utils {
 
 	use super::*;
 
-    type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
 
 
@@ -49,7 +49,7 @@ pub mod utils {
 
 			let ref_no = vane_payment::Pallet::<T>::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
 
-			vane_payment::AllowedSigners::<T>::insert(&payer, &ref_no, accounts);
+			vane_payment::AllowedSigners::<T>::insert(&payer, ref_no.to_vec(), accounts);
 
 			//if the multi_id is the same as previous Receipt just increment the total amount and add the txn_no amount
 
@@ -66,7 +66,8 @@ pub mod utils {
 				if let Some(idx) = index {
 					// Get the receipt
 					let mut receipt = p_vec.get_mut(idx).ok_or(Error::<T>::UnexpectedError).unwrap();
-					receipt.update_txn(amount)
+					receipt.update_txn(amount);
+					receipt.update_amount(amount)
 
 				}else{
 					p_vec.push(receipt.clone())
@@ -104,6 +105,7 @@ pub mod utils {
         pub fn vane_xcm_transfer_dot(
             amount: u128,
             multi_id: AccountIdLookupOf<T>, // Multi Id Account
+			multi_id_acc: T::AccountId, // Just for types difference usage but this and multi_id are sme value
 			asset_id: T::AssetIdParameter
 		) -> DispatchResult {
 
@@ -111,17 +113,39 @@ pub mod utils {
 			// Deposit Amount to MultiSig Account
 			let issuer = ParaAccount::<T>::get().unwrap();
 
-			let amount: <T as pallet_assets::Config>::Balance = amount.try_into().map_err(|_| Error::<T>::UnexpectedError)? ;
+			let balance: <T as pallet_assets::Config>::Balance = amount.try_into().map_err(|_| Error::<T>::UnexpectedError)? ;
 
-			<pallet_assets::Pallet<T>>::mint(
-				RawOrigin::Signed(issuer).into(),
-				asset_id,
-				multi_id,
-				amount // handle this error
-			)?;
+			// Check if the multi_id account does contain the tokens
+			let to_check_balance:<T as pallet_assets::Config>::Balance = 0u128.try_into().map_err(|_| Error::<T>::UnexpectedError)?;
 
+			if <pallet_assets::Pallet<T>>::balance(asset_id.into(),multi_id_acc.clone()) != to_check_balance {
 
+				let current_balance = <pallet_assets::Pallet<T>>::balance(asset_id.into(),multi_id_acc);
+				let to_mint = current_balance.add(balance.try_into().expect("Failed to add balances in pallet  vane_xcm"));
+
+				<pallet_assets::Pallet<T>>::mint(
+					RawOrigin::Signed(issuer).into(),
+					asset_id,
+					multi_id.clone(),
+					to_mint // handle this error
+				)?;
+
+			}else{
+				<pallet_assets::Pallet<T>>::mint(
+					RawOrigin::Signed(issuer).into(),
+					asset_id,
+					multi_id.clone(),
+					balance // handle this error
+				)?;
+			}
+
+			let time = <frame_system::Pallet<T>>::block_number();
 			// Event
+			Self::deposit_event(Event::DotXcmTransferInitiated {
+				time,
+				amount,
+				multi_id,
+			});
 
             Ok(())
         }

@@ -16,18 +16,17 @@ use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::*;
 use sp_runtime::{traits::TrailingZeroInput, MultiAddress};
 use sp_std::{vec::Vec,vec};
+use frame_support::storage::bounded_vec::BoundedVec;
 
 pub use utils::*;
 pub mod utils {
 	use super::*;
-	use frame_support::{
-		dispatch::{
-			DispatchErrorWithPostInfo, DispatchResult, DispatchResultWithPostInfo, GetDispatchInfo,
-			PostDispatchInfo, RawOrigin,
-		},
-		traits::{Currency, ExistenceRequirement},
-	};
+	use frame_support::{ dispatch::{
+		DispatchErrorWithPostInfo, DispatchResult, DispatchResultWithPostInfo, GetDispatchInfo,
+		PostDispatchInfo, RawOrigin,
+	}, traits::{Currency, ExistenceRequirement}};
 	use frame_system::{Account, AccountInfo};
+	use sp_core::{ parameter_types};
 	use sp_io::hashing::blake2_256;
 	use sp_runtime::{
 		traits::{Dispatchable, StaticLookup, TrailingZeroInput, Zero},
@@ -153,8 +152,12 @@ pub mod utils {
 		Tbc
 	}
 
+	parameter_types! {
+		pub const MAX_BYTES: u8 = 50;
+		pub const MAX_NO_TXNS: u8 = 20;
+	}
 
-	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug,MaxEncodedLen, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 
 	pub struct TxnReceipt<T: Config> {
@@ -162,9 +165,9 @@ pub mod utils {
 		payer: T::AccountId,
 		pub multi_id: T::AccountId,
 		pub amount: u128,
-		reference_no: Vec<u8>,
+		pub reference_no: BoundedVec<u8,MAX_BYTES>,
 		currency: Option<Token>,
-		no_txn: Vec<(u128)>,
+		no_txn: BoundedVec<u128, MAX_NO_TXNS>,
 		pub xcm_status: XcmStatus
 	}
 
@@ -173,16 +176,24 @@ pub mod utils {
 			payee: T::AccountId,
 			payer: T::AccountId,
 			multi_id: T::AccountId,
-			ref_no: Vec<u8>,
+			ref_no: BoundedVec<u8,MAX_BYTES>,
 			amount: u128,
-			txn: (u128),
+			txn: u128,
 			currency:Option<Token>
 		) -> Self {
-			Self { payee, payer, reference_no: ref_no, amount,currency, no_txn: vec![txn], xcm_status: XcmStatus::Tbc, multi_id }
+
+			let mut no_txn = BoundedVec::new();
+			no_txn.to_vec().push(txn);
+
+			Self {
+				payee, payer, reference_no: ref_no,
+				amount,currency, no_txn,
+				xcm_status: XcmStatus::Tbc, multi_id
+			}
 		}
 
 		pub fn update_txn(&mut self, txn: (u128)){
-			self.no_txn.push(txn)
+			self.no_txn.try_push(txn).unwrap() // Put error handling
 		}
 
 		pub fn update_amount(&mut self, amount: u128){
@@ -233,14 +244,14 @@ pub mod utils {
 			payer: T::AccountId,
 			payee: T::AccountId,
 			multi_id: T::AccountId,
-		) -> Vec<u8> {
+		) -> BoundedVec<u8,MAX_BYTES> {
 			let mut buffer = Vec::new();
 			buffer.append(&mut payer.using_encoded(blake2_256).to_vec());
 			buffer.append(&mut payee.using_encoded(blake2_256).to_vec());
 			buffer.append(&mut multi_id.using_encoded(blake2_256).to_vec());
 
 			let reference = blake2_256(&buffer[..]);
-			return reference[20..26].to_vec();
+			return reference[20..26].to_vec().try_into().unwrap(); // Proper error handling should be done
 		}
 		// Call if there are all confirmed signers
 
@@ -259,7 +270,7 @@ pub mod utils {
 
 			let ref_no = Self::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
 
-			AllowedSigners::<T>::insert(&payer, &ref_no, accounts);
+			AllowedSigners::<T>::insert(&payer, ref_no.to_vec(), accounts);
 
 
 			let receipt =
@@ -320,7 +331,7 @@ pub mod utils {
 				to_multi_id: multi_id,
 				from: payer,
 				timestamp: time,
-				reference_no: ref_no,
+				reference_no: ref_no.to_vec(),
 			});
 
 			Ok(())
@@ -339,10 +350,10 @@ pub mod utils {
 			let ref_no = Self::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
 
 			// Double keys to allow multiple txns
-			AllowedSigners::<T>::insert(&payer, &ref_no, accounts);
+			AllowedSigners::<T>::insert(&payer, ref_no.to_vec(), accounts);
 
 			let ticket =
-				TxnTicketOrder::new(payee.clone(), payer.clone(), ref_no.clone(), amount.clone());
+				TxnTicketOrder::new(payee.clone(), payer.clone(), ref_no.clone().to_vec(), amount.clone());
 			// Store to each storage item for txntickets
 			// Useful for getting refrence no for TXN confirmation
 			PayeeTxnTicketOrder::<T>::mutate(&payee, |p_vec| p_vec.push(ticket.clone()));
@@ -370,7 +381,7 @@ pub mod utils {
 				to_multi_id: multi_id,
 				from: payer,
 				timestamp: time,
-				reference_no: ref_no,
+				reference_no: ref_no.to_vec(),
 			});
 
 			Ok(())

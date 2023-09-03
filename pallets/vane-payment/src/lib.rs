@@ -128,7 +128,6 @@ pub mod pallet {
 	// Keys ->(payer, payee) , allowing related txn to be in one place
 
 	#[pallet::storage]
-	#[pallet::unbounded]
 	pub type PayerTxnReceipt<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -236,6 +235,8 @@ pub mod pallet {
 		NotAllowedPayeeOrPaymentNotInitialized,
 
 		MultiSigCallFailed,
+
+		TxnReceiptUnavailable,
 		// For Vane Register
 		ProductNotFound,
 
