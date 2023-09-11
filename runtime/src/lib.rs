@@ -8,11 +8,13 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 #[cfg(test)]
 mod xcm_sim_testing;
-
+#[cfg(test)]
+mod xcm_eml_testing;
 
 mod currency;
 mod weights;
 pub mod xcm_config;
+
 
 
 use sp_std::marker::PhantomData;

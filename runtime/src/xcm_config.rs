@@ -12,14 +12,7 @@ use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use xcm::latest::prelude::*;
-use xcm_builder::{
-	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom,
-	CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin,
-	FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset, RelayChainAsNative,
-	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId,
-	UsingComponents, WithComputedOrigin, WithUniqueTopic,
-};
+use xcm_builder::{AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic};
 use xcm_executor::XcmExecutor;
 
 parameter_types! {
@@ -90,23 +83,26 @@ match_types! {
 	};
 }
 
-pub type Barrier = TrailingSetTopicAsId<
-	DenyThenTry<
-		DenyReserveTransferToRelayChain,
-		(
-			TakeWeightCredit,
-			WithComputedOrigin<
-				(
-					AllowTopLevelPaidExecutionFrom<Everything>,
-					AllowExplicitUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
-					// ^^^ Parent and its exec plurality get free execution
-				),
-				UniversalLocation,
-				ConstU32<8>,
-			>,
-		),
-	>,
->;
+// pub type Barrier = TrailingSetTopicAsId<
+// 	DenyThenTry<
+// 		DenyReserveTransferToRelayChain,
+// 		(
+// 			TakeWeightCredit,
+// 			WithComputedOrigin<
+// 				(
+// 					AllowTopLevelPaidExecutionFrom<Everything>,
+// 					AllowExplicitUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
+// 					// ^^^ Parent and its exec plurality get free execution
+// 					//AllowUnpaidExecutionFrom<Parent>
+// 				),
+// 				UniversalLocation,
+// 				ConstU32<8>,
+// 			>,
+// 		),
+// 	>,
+// >;
+
+pub type Barrier = AllowUnpaidExecutionFrom<Everything>;
 
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {

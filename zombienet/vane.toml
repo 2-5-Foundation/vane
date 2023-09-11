@@ -4,7 +4,7 @@ bootnode = false
 [relaychain]
 chain = "polkadot"
 default_command = "../bin/polkadot"
-chain_spec_path = "../../polkadot/tmp01/rococo-local.json"
+chain_spec_path = "./zombienet/rococo.json"
 bootnode = false
 
   [[relaychain.nodes]]
@@ -43,7 +43,7 @@ bootnode = false
   # genesis_state_path = "tmp1/vane-state"
   # onboard_as_parachain = true
   # register_para = true
-  
+
   # [parachains.collator_groups]
   # onboard_as_parachain = true
   # register_para = true

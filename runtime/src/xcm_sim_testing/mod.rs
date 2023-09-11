@@ -792,6 +792,8 @@ mod tests {
 				asset_id: asset1,
 			});
 
+			println!(" Encoded Transfer Call : {:?}",test_transfer_call.encode());
+
 			let message = Xcm::<()>(vec![
 				DescendOrigin(AccountId32 {network: None, id: ALICE.into() }.into()), // look into remote derived accounts
 				Transact {
