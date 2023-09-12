@@ -264,6 +264,7 @@ mod pallet{
 		pub fn test_storing(origin:OriginFor<T>,acc:T::AccountId,num:u32) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 			TestStorage::<T>::set(&acc,num);
+			Self::deposit_event(Event::TestStored);
 			Ok(())
 		}
 
