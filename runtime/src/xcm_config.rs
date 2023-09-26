@@ -12,8 +12,10 @@ use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use xcm::latest::prelude::*;
-use xcm_builder::{AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic};
+use xcm_builder::{AccountId32Aliases, AliasForeignAccountId32, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic};
 use xcm_executor::XcmExecutor;
+use vane_primitive::{CurrencyId, MultiCurrencyAsset, MultiCurrencyConverter};
+use vane_xcm::orml_xcm_support::IsNativeConcrete;
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -35,16 +37,14 @@ pub type LocationToAccountId = (
 );
 
 /// Means for transacting assets on this chain.
-pub type LocalAssetTransactor = CurrencyAdapter<
-	// Use this currency:
-	Balances,
-	// Use this currency when it is a fungible asset matching the given location or name:
-	IsConcrete<RelayLocation>,
-	// Do a simple punn to convert an AccountId32 MultiLocation into a native chain account ID:
-	LocationToAccountId,
-	// Our chain's account ID type (we can't get away without mentioning it explicitly):
+pub type LocalAssetTransactor =  vane_primitive::VaneMultiCurrencyAdapter<
+	MultiCurrencyAsset<Runtime>,
+	(), // handler for unknown assets
+	IsNativeConcrete<CurrencyId, MultiCurrencyConverter<Runtime>>,
 	AccountId,
-	// We don't track any teleports.
+	LocationToAccountId,
+	CurrencyId,
+	MultiCurrencyConverter<Runtime>,
 	(),
 >;
 
@@ -104,15 +104,36 @@ match_types! {
 
 pub type Barrier = AllowUnpaidExecutionFrom<Everything>;
 
+match_types! {
+	pub type SiblingPrefix: impl Contains<MultiLocation> = {
+		MultiLocation { parents: 1, interior: X1(Parachain(_)) }
+	};
+	pub type ChildPrefix: impl Contains<MultiLocation> = {
+		MultiLocation { parents: 0, interior: X1(Parachain(_)) }
+	};
+	pub type ParentPrefix: impl Contains<MultiLocation> = {
+		MultiLocation { parents: 1, interior: Here }
+	};
+}
+
+
+pub type XcmOriginToCallOrigin = (
+	SovereignSignedViaLocation<LocationToAccountId, RuntimeOrigin>,
+	SignedAccountId32AsNative<RelayNetwork, RuntimeOrigin>,
+	XcmPassthrough<RuntimeOrigin>,
+);
+
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
 	type XcmSender = XcmRouter;
 	// How to withdraw and deposit an asset.
 	type AssetTransactor = LocalAssetTransactor;
-	type OriginConverter = XcmOriginToTransactDispatchOrigin;
-	type IsReserve = NativeAsset;
-	type IsTeleporter = (); // Teleporting is disabled.
+	type OriginConverter = XcmOriginToCallOrigin;
+	type IsReserve = vane_primitive::VaneDerivedAssets; // Custom Asset matcher
+	type IsTeleporter = ();
+	type Aliasers = AliasForeignAccountId32<ParentPrefix>;
+	// Teleporting is disabled.
 	type UniversalLocation = UniversalLocation;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
@@ -120,18 +141,17 @@ impl xcm_executor::Config for XcmConfig {
 		UsingComponents<WeightToFee, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>;
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
+	type AssetLocker = ();
+	type AssetExchanger = ();
 	type AssetClaims = PolkadotXcm;
 	type SubscriptionService = PolkadotXcm;
 	type PalletInstancesInfo = AllPalletsWithSystem;
 	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
-	type AssetLocker = ();
-	type AssetExchanger = ();
 	type FeeManager = ();
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
 	type SafeCallFilter = Everything;
-	type Aliasers = Nothing;
 }
 
 /// No local origins on this chain are allowed to dispatch XCM sends/executions.

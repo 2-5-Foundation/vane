@@ -12,7 +12,8 @@ pub mod utils {
 	use frame_support::traits::UnfilteredDispatchable;
 	use frame_system::RawOrigin;
     use sp_runtime::{MultiAddress, traits::StaticLookup};
-    use vane_payment::helper::Token;
+	use sp_runtime::DispatchError::BadOrigin;
+	use vane_payment::helper::Token;
     use xcm::{
         v3::{
             MultiLocation,Junctions,Junction,
@@ -33,6 +34,22 @@ pub mod utils {
 
 
     impl<T: Config> Pallet<T>{
+
+		// pub fn ensure_xcm_signed<OuterOrigin, AccountId>(o: OuterOrigin) -> Result<AccountId, Error<T>>
+		// 	where
+		// 		OuterOrigin: Into<Result<RawOrigin<AccountId>, OuterOrigin>>,
+		// {
+		// 	log::info!(
+		// 			target:"",
+		// 			"{:?}",
+		// 			o
+		// 		);
+		// 	match o.into() {
+		// 		Ok(RawOrigin::Signed(t)) => Ok(t),
+		// 		_ => Err(Error::<T>::NotTheCaller),
+		// 	}
+		// }
+
         pub fn vane_multisig_record(
             payer: T::AccountId,
             payee: T::AccountId,

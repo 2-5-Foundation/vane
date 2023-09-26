@@ -27,6 +27,7 @@ vane-order = { version = "1.0.0-dev", default-features =  false, path = "../pall
 vane-payment = { version = "1.0.0-dev", default-features = false, path = "../pallets/vane-payment"}
 vane-wallet-less = { version = "1.0.0-dev", default-features = false, path ="../pallets/vane-wallet-less"}
 vane-xcm = {version = "1.0.0-dev", default-features = false,  path ="../pallets/vane-xcm"}
+vane-primitive = { version = "1.0.0-dev", default-features = false, path ="../primitive/vane-primitive"}
 # ORML
 
 # Substrate
@@ -108,6 +109,7 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter", "tracing-lo
 integration-tests-common = {git = "https://github.com/paritytech/cumulus.git", branch = "polkadot-v1.0.0"}
 array-bytes = "6.1.0"
 hex = "0.4.3"
+hex-literal = { version = "0.4.1" }
 
 
 [features]
@@ -153,6 +155,7 @@ std = [
 	"vane-payment/std",
 	"vane-wallet-less/std",
 	"vane-xcm/std",
+	"vane-primitive/std",
 
 	# ORML Pallets
 

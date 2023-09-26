@@ -12,6 +12,8 @@ use sp_runtime::{
 use sp_std::prelude::*;
 use vane_xcm;
 
+use vane_xcm::{orml_traits,orml_xcm_support};
+
 use pallet_xcm::XcmPassthrough;
 use polkadot_core_primitives::BlockNumber as RelayBlockNumber;
 use polkadot_parachain::primitives::{
@@ -26,10 +28,15 @@ use xcm_executor::{
 use xcm_simulator::PhantomData;
 use assets_common::foreign_creators::ForeignCreators;
 
+use vane_primitive::{CurrencyId, MultiCurrencyAsset, MultiCurrencyConverter, VaneDerivedAssets, VaneForeignCreators};
+
+
 // `EnsureOriginWithArg` impl for `CreateOrigin` which allows only XCM origins
 // which are locations containing the class location.
 use xcm_executor::traits::ConvertLocation;
+use vane_xcm::orml_xcm_support::IsNativeConcrete;
 use crate::{ApprovalDeposit, ForeignAssetsAssetAccountDeposit, ForeignAssetsAssetDeposit, ForeignAssetsMetadataDepositBase, ForeignCreatorsSovereignAccountOf, MetadataDepositPerByte, StringLimit, weights, xcm_config};
+use crate::xcm_sim_testing::Vane;
 
 // pub struct ForeignCreators;
 // impl EnsureOriginWithArg<RuntimeOrigin, MultiLocation> for ForeignCreators {
@@ -65,7 +72,7 @@ parameter_types! {
 
 pub type LocationToAccountId = (
 	ParentIsPreset<AccountId>,
-	SiblingParachainConvertsVia<Sibling, AccountId>,
+	// SiblingParachainConvertsVia<Sibling, AccountId>,
 	AccountId32Aliases<RelayNetwork, AccountId>,
 	Account32Hash<(), AccountId>,
 );
@@ -73,7 +80,7 @@ pub type LocationToAccountId = (
 pub type XcmOriginToCallOrigin = (
 	SovereignSignedViaLocation<LocationToAccountId, RuntimeOrigin>,
 	SignedAccountId32AsNative<RelayNetwork, RuntimeOrigin>,
-	XcmPassthrough<RuntimeOrigin>,
+	//XcmPassthrough<RuntimeOrigin>,
 );
 
 parameter_types! {
@@ -84,10 +91,17 @@ parameter_types! {
 	pub ForeignPrefix: MultiLocation = (Parent,).into();
 }
 
-pub type LocalAssetTransactor = (
-	XcmCurrencyAdapter<Balances, IsConcrete<KsmLocation>, LocationToAccountId, AccountId, ()>,
 
-);
+pub type LocalAssetTransactor = vane_primitive::VaneMultiCurrencyAdapter<
+	MultiCurrencyAsset<Runtime>,
+	(), // handler for unknown assets
+	IsNativeConcrete<CurrencyId, MultiCurrencyConverter<Runtime>>,
+	AccountId,
+	LocationToAccountId,
+	CurrencyId,
+	MultiCurrencyConverter<Runtime>,
+	(),
+>;
 
 pub type SovereignAccountOf = (
 	SiblingParachainConvertsVia<Sibling, AccountId>,
@@ -167,15 +181,17 @@ match_types! {
 }
 
 
+
+
 pub struct XcmConfig;
 impl Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
 	type XcmSender = XcmRouter;
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = XcmOriginToCallOrigin;
-	type IsReserve = ();
+	type IsReserve = vane_primitive::VaneDerivedAssets;
 	type IsTeleporter = ();
-	type Aliasers = AliasForeignAccountId32<ParentPrefix>;
+	type Aliasers = AliasForeignAccountId32<ParentPrefix>; // test for both Parent and AssetHub Prefix
 	type UniversalLocation = UniversalLocation;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
@@ -415,11 +431,11 @@ impl pallet_assets::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type RemoveItemsLimit = ConstU32<1000>;
-	type AssetId = MultiLocation;
-	type AssetIdParameter = MultiLocation;
+	type AssetId = CurrencyId;
+	type AssetIdParameter = CurrencyId;
 	type Currency = Balances;
-	type CreateOrigin = ForeignCreators<
-		FromSiblingParachain<parachain_info::Pallet<Runtime>>,
+	type CreateOrigin = VaneForeignCreators<
+		VaneDerivedAssets,
 		ForeignCreatorsSovereignAccountOf,
 		AccountId,
 	>;

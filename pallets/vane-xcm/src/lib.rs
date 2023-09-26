@@ -4,7 +4,10 @@
 pub use pallet::*;
 pub mod helper;
 
-
+// pub use orml_tokens;
+// pub use orml_xtokens;
+pub use orml_traits;
+pub use orml_xcm_support;
 
 
 #[frame_support::pallet]
@@ -116,6 +119,16 @@ mod pallet{
 
 		) -> DispatchResult{
 			// log the origin
+
+			// Map multilocation to native account address
+
+			//let caller = sp_runtime::AccountId32::from(origin);
+
+			// log::info!(
+			// 	target: "",
+			// 	" origin {:?}",
+			// 	Ok(origin),
+			// );
 
 			let caller = ensure_signed(origin.clone())?;
 			log::info!(

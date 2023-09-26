@@ -16,6 +16,20 @@ scale-info = { version = "2.1.1", default-features = false, features = ["derive"
 #frame-benchmarking = { version = "4.0.0-dev", default-features = false, optional = true, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v1.0.0" }
 frame-support = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v1.0.0" }
 frame-system = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v1.0.0" }
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
+pallet-assets = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
+pallet-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v1.0.0" }
+xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v1.0.0" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v1.0.0" }
+sp-core = { git = "https://github.com/paritytech/substrate.git",default-features = false, branch = "polkadot-v1.0.0" }
+xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v1.0.0" }
+serde = { version = "1.0.163", default-features = false, features = ["alloc", "derive"] }
+
+
+# ORML
+orml-traits = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "master" }
+orml-xcm-support = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "master" }
+
 
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v1.0.0" }
@@ -30,4 +44,15 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"scale-info/std",
+	"sp-std/std",
+	"pallet-assets/std",
+	"pallet-xcm/std",
+	"xcm/std",
+	"sp-runtime/std",
+	"sp-core/std",
+	"xcm-executor/std",
+	"serde/std",
+	# ORML
+	"orml-traits/std",
+	"orml-xcm-support/std"
 ]

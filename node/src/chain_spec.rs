@@ -11,6 +11,7 @@ use xcm::prelude::*;
 use codec::{Encode,Decode};
 use sp_core::{crypto::{Ss58AddressFormatRegistry, Ss58Codec}};
 use sp_runtime::{MultiSigner};
+use vane_runtime::CurrencyId::DOT;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec =
@@ -128,7 +129,7 @@ pub fn local_testnet_config() -> ChainSpec {
 		// Name
 		"Vane Testnet",
 		// ID
-		"vane_tesnet",
+		"vane_testnet",
 		ChainType::Local,
 		move || {
 			testnet_genesis(
@@ -214,21 +215,6 @@ fn testnet_genesis(
 	let alice = get_from_seed::<sr25519::Public>("Alice");
 	let bob = get_from_seed::<sr25519::Public>("Bob");
 
-	let dot_asset = MultiLocation{
-		parents: 0,
-		interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-	};
-
-	let usdt_asset = MultiLocation{
-		parents: 0,
-		interior: X2(PalletInstance(10),GeneralIndex(2)).into()
-	};
-
-	let usdc_asset = MultiLocation{
-		parents: 0,
-		interior: X2(PalletInstance(10),GeneralIndex(3)).into()
-	};
-
 	let v_dot = "vDOT".as_bytes().to_vec();
 	let _v_usdt = "vUSDT".as_bytes().to_vec();
 	let _v_usdc = "vUSDC".as_bytes().to_vec();
@@ -251,11 +237,11 @@ fn testnet_genesis(
 
 		vane_assets: vane_runtime::VaneAssetsConfig {
 
-			metadata: vec![(dot_asset,v_dot.clone(), v_dot,10)],
+			metadata: vec![(DOT,v_dot.clone(), v_dot,10)],
 
-			assets: vec![(dot_asset,para_account.clone(),true,1)],
+			assets: vec![(DOT,para_account.clone(),true,1)],
 
-			accounts: vec![(dot_asset,para_account.clone(),0)]
+			accounts: vec![(DOT,para_account.clone(),0)]
 
 		},
 

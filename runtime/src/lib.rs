@@ -41,6 +41,9 @@ use vane_xcm;
 use assets_common;
 use assets_common::foreign_creators::ForeignCreators;
 use assets_common::matching::FromSiblingParachain;
+// use vane_xcm::{orml_xtokens,orml_tokens,orml_traits};
+
+
 
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -363,7 +366,7 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	/// The action to take on a Runtime Upgrade
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MaxConsumers = ConstU32<16>;
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -427,10 +430,10 @@ impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type OnChargeTransaction =
 		pallet_transaction_payment::CurrencyAdapter<Balances, DealWithFees<Runtime>>;
+	type OperationalFeeMultiplier = ConstU8<5>;
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
-	type OperationalFeeMultiplier = ConstU8<5>;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -527,6 +530,8 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 use sp_core::ConstBool;
 use sp_runtime::traits::AccountIdConversion;
 use xcm_executor::traits::ConvertLocation;
+pub use vane_primitive::{CurrencyId, VaneDerivedAssets, VaneForeignCreators};
+
 
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
@@ -610,11 +615,11 @@ impl pallet_assets::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type RemoveItemsLimit = ConstU32<1000>;
-	type AssetId = MultiLocation;
-	type AssetIdParameter = MultiLocation;
+	type AssetId = CurrencyId;
+	type AssetIdParameter = CurrencyId;
 	type Currency = Balances;
-	type CreateOrigin = ForeignCreators<
-		FromSiblingParachain<parachain_info::Pallet<Runtime>>,
+	type CreateOrigin = VaneForeignCreators<
+		VaneDerivedAssets,
 		ForeignCreatorsSovereignAccountOf,
 		AccountId,
 	>;
@@ -663,17 +668,17 @@ parameter_types! {
 
 
 
-// pub struct TokenIdConvert;
+pub struct TokenIdConvert;
 // impl Convert<u32, Option<MultiLocation>> for TokenIdConvert {
 // 	fn convert(id: u32) -> Option<MultiLocation> {
 // 		VaneAssetRegistry::<Runtime>::multilocation(&id).unwrap_or(None)
 // 	}
 // }
-
+//
 // impl Convert<MultiLocation, Option<u32>> for TokenIdConvert {
 // 	fn convert(location: MultiLocation) -> Option<u32> {
 // 		match location {
-
+//
 // 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
 // 				if para_id == u32::from(ParachainInfo::parachain_id()) =>
 // 				None, // No Native Token
@@ -699,6 +704,53 @@ parameter_types! {
 // 	}
 // }
 
+// parameter_types! {
+// 	pub enum CurrencyId {
+// 	DOT,
+// 	USDT,
+// 	USDC
+//  }
+// }
+
+
+// orml_traits::parameter_type_with_key! {
+//     pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
+//         match currency_id {
+//             1 => EXISTENTIAL_DEPOST,
+//             2|3 => 1u128,
+//         }
+//     }
+// }
+
+// pub struct CurrencyHooks<T>(PhantomData<T>);
+// impl<T:frame_system::Config> MutationHooks<T::AccountId, T::CurrencyId, T::Balance> for CurrencyHooks<T>
+// 	where
+// 		T::AccountId: From<AccountId32> + Into<AccountId32>,
+// 		T::CurrencyId: From<u32> + Into<u32>,
+// {
+// 	type OnDust = ();
+// 	type OnSlash =();
+// 	type PreDeposit = ();
+// 	type PostDeposit = ();
+// 	type PreTransfer = ();
+// 	type PostTransfer = ();
+// 	type OnNewTokenAccount = ();
+// 	type OnKilledTokenAccount = ();
+// }
+
+// impl orml_tokens::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type Balance = Balance;
+// 	type Amount = i128;
+// 	type CurrencyId = u8;
+// 	type WeightInfo = ();
+// 	type ExistentialDeposits = ExistentialDeposits;
+// 	type CurrencyHooks = CurrencyHooks<Runtime>;
+// 	type MaxLocks = ();
+// 	type MaxReserves = ();
+// 	type ReserveIdentifier = ();
+// 	type DustRemovalWhitelist = ();
+// }
 
 
 

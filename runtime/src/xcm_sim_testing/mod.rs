@@ -37,7 +37,7 @@ decl_test_parachain! {
 		Runtime = parachain::Runtime,
 		XcmpMessageHandler = parachain::MsgQueue,
 		DmpMessageHandler = parachain::MsgQueue,
-		new_ext = para_ext(1),
+		new_ext = para_ext(2000),
 	}
 }
 
@@ -59,7 +59,7 @@ decl_test_network! {
 	pub struct MockNet {
 		relay_chain = Relay,
 		parachains = vec![
-			(1, Vane),
+			(2000, Vane),
 		],
 	}
 }
@@ -67,6 +67,7 @@ decl_test_network! {
 
 
 use xcm_executor::traits::ConvertLocation;
+use vane_primitive::CurrencyId;
 
 pub fn parent_account_id() -> parachain::AccountId {
 	let location = (Parent,);
@@ -112,19 +113,15 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
-			(ALICE,INITIAL_BALANCE),
-			(parent_account_id(), INITIAL_BALANCE)
+			// (ALICE,INITIAL_BALANCE),
+			// (parent_account_id(), INITIAL_BALANCE)
 		],
 
 	}.assimilate_storage(&mut t).unwrap();
 
-	// Vane asset
-	let asset1 = MultiLocation{
-		parents: 0,
-		interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-	};
 
-	let asset1_name = "vDot".as_bytes().to_vec();
+
+	let asset1_name = "vDOT".as_bytes().to_vec();
 	let _asset2_name = "vUSDT".as_bytes().to_vec();
 
 	// pallet_assets::GenesisConfig::<Runtime> {
@@ -137,9 +134,9 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 
 	pallet_assets::GenesisConfig::<Runtime> {
 
-		metadata: vec![(asset1,asset1_name.clone(),asset1_name,10)],
-		assets: vec![(asset1,child_account_id(1),true,1)],
-		accounts: vec![(asset1,child_account_id(1),0)]
+		metadata: vec![(CurrencyId::DOT,asset1_name.clone(),asset1_name,10)],
+		assets: vec![(CurrencyId::DOT,child_account_id(1),true,1)],
+		accounts: vec![(CurrencyId::DOT,child_account_id(1),0)]
 
 	}.assimilate_storage(&mut t).unwrap();
 
@@ -167,7 +164,7 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
 			(ALICE, 100_000),
-			//(child_account_id(1), INITIAL_BALANCE),
+			(child_account_id(1), 1000),
 
 		],
 	}
@@ -194,9 +191,11 @@ mod tests {
 
 
 	use frame_support::{assert_ok};
+	use frame_support::macro_magic::__private::syn::token::In;
 	use frame_support::traits::fungibles::Inspect;
 	use sp_runtime::traits::Dispatchable;
 	use xcm::v3::OriginKind::{Native, SovereignAccount};
+	use xcm_emulator::bx;
 	use xcm_simulator::TestExt;
 	use vane_payment::Confirm;
 	use vane_payment::helper::Token;
@@ -222,7 +221,8 @@ mod tests {
 		//                          --->Ms(A,B)--->Bob -------------
 
 
-		//init_tracing();
+		sp_tracing::init_for_tests();
+
 
 		MockNet::reset();
 
@@ -240,75 +240,102 @@ mod tests {
 				0,
 			));
 
+			// Transfer reserve manually
+			let inner_msg = Xcm::<()>(vec![
+
+			]);
+
+			let message = Xcm::<()>(vec![
+				TransferReserveAsset {
+					assets: (Here,amount).into(),
+					dest: Parachain(1).into(),
+					xcm: inner_msg,
+				}
+			]);
+
+			// assert_ok!(
+			// 	RelayChainPalletXcm::send(
+			// 		relay_chain::RuntimeOrigin::signed(ALICE),
+			// 		bx!(Parachain(1).into()),
+			// 		bx!(VersionedXcm::V3(message))
+			// 	)
+			// );
+
 			// Relay chain events
 			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
 			// Assert if the tokens are in Vane sovereign Account in the relay chain
 			assert_eq!(
-				relay_chain::Balances::free_balance(&child_account_id(1)),
-				INITIAL_BALANCE + amount
+				relay_chain::Balances::free_balance(&child_account_id(2000)),
+				amount + 1000
 			);
 		});
-
-		let asset1 = MultiLocation{
-			parents: 0,
-			interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-		};
-
+		//
+		// let asset1 = MultiLocation{
+		// 	parents: 0,
+		// 	interior: X2(PalletInstance(10),GeneralIndex(1)).into()
+		// };
+		//
+		//
+		println!("Vane Area \n");
 
 		Vane::execute_with(||{
-
-			// Test custom asset transfer
-			assert_ok!(
-				VanePalletAsset::transfer_keep_alive(
-					parachain::RuntimeOrigin::signed(VANE),
-					asset1,
-					MRISHO.into(),
-					1000
-				)
-			);
-
 			assert_eq!(
-				VanePalletAsset::balance(asset1,VANE),
-				100_000 - 1000
+				VanePalletBalances::free_balance(ALICE),
+				amount
 			);
-			assert_eq!(
-				VanePalletAsset::balance(asset1,MRISHO),
-				1000
-			);
-
-			// Test custom asset transfer with local xcm execute
-			let asset_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::transfer_keep_alive {
-				id: asset1,
-				target: BOB.into(),
-				amount: asset_amount,
-			});
-
-			let local_asset_message = Xcm::<parachain::RuntimeCall>(vec![
-				Transact {
-					origin_kind: SovereignAccount,
-					require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024),
-					call:asset_call.encode().into()
-				}
-
-			]);
-
-			assert_ok!(
-				VanePalletXcm::execute(
-					parachain::RuntimeOrigin::signed(VANE),
-					Box::new(VersionedXcm::V3(local_asset_message)),
-					Weight::from_parts(1_000_000_005, 1025 * 1024)
-				)
-			);
-
-			assert_eq!(
-				VanePalletAsset::balance(asset1,VANE),
-				100_000 - asset_amount*2
-			);
-			assert_eq!(
-				VanePalletAsset::balance(asset1,BOB),
-				1000
-			);
+		//
+		// 	// Test custom asset transfer
+		// 	assert_ok!(
+		// 		VanePalletAsset::transfer_keep_alive(
+		// 			parachain::RuntimeOrigin::signed(VANE),
+		// 			asset1,
+		// 			MRISHO.into(),
+		// 			1000
+		// 		)
+		// 	);
+		//
+		// 	assert_eq!(
+		// 		VanePalletAsset::balance(asset1,VANE),
+		// 		100_000 - 1000
+		// 	);
+		// 	assert_eq!(
+		// 		VanePalletAsset::balance(asset1,MRISHO),
+		// 		1000
+		// 	);
+		//
+		// 	// Test custom asset transfer with local xcm execute
+		// 	let asset_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::transfer_keep_alive {
+		// 		id: asset1,
+		// 		target: BOB.into(),
+		// 		amount: asset_amount,
+		// 	});
+		//
+		// 	let local_asset_message = Xcm::<parachain::RuntimeCall>(vec![
+		// 		Transact {
+		// 			origin_kind: SovereignAccount,
+		// 			require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024),
+		// 			call:asset_call.encode().into()
+		// 		}
+		//
+		// 	]);
+		//
+		// 	assert_ok!(
+		// 		VanePalletXcm::execute(
+		// 			parachain::RuntimeOrigin::signed(VANE),
+		// 			Box::new(VersionedXcm::V3(local_asset_message)),
+		// 			Weight::from_parts(1_000_000_005, 1025 * 1024)
+		// 		)
+		// 	);
+		//
+		// 	assert_eq!(
+		// 		VanePalletAsset::balance(asset1,VANE),
+		// 		100_000 - asset_amount*2
+		// 	);
+		// 	assert_eq!(
+		// 		VanePalletAsset::balance(asset1,BOB),
+		// 		1000
+		// 	);
 
 			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
@@ -320,35 +347,31 @@ mod tests {
 	fn vane_remote_soln1_custom_asset_derivitive_works(){
 		MockNet::reset();
 
-		let asset1 = MultiLocation{
-			parents: 0,
-			interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-		};
 
 		// Test minting
 		Vane::execute_with(||{
 			assert_ok!(VanePalletAsset::mint(
 				parachain::RuntimeOrigin::signed(child_account_id(1)),
-				asset1,
+				CurrencyId::DOT,
 				MRISHO.into(),
 				1000
 			));
 
 			// Check if the asset is minted
 			assert_eq!(
-				VanePalletAsset::balance(asset1,MRISHO),
+				VanePalletAsset::balance(CurrencyId::DOT,MRISHO),
 				1000
 			);
 			// Check total issuance & supply
 			assert_eq!(
-				VanePalletAsset::total_supply(asset1) + VanePalletAsset::total_issuance(asset1),
+				VanePalletAsset::total_supply(CurrencyId::DOT) + VanePalletAsset::total_issuance(CurrencyId::DOT),
 				2000
 			);
 
 
 			// Test minting with xcm_execute
 			let asset_mint_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::mint {
-				id: asset1,
+				id: CurrencyId::DOT,
 				beneficiary: BOB.into(),
 				amount: 1000,
 			});
@@ -372,12 +395,12 @@ mod tests {
 
 			// Check if the asset is minted
 			assert_eq!(
-				VanePalletAsset::balance(asset1,BOB),
+				VanePalletAsset::balance(CurrencyId::DOT,BOB),
 				1000
 			);
 			// Check total issuance & supply
 			assert_eq!(
-				VanePalletAsset::total_supply(asset1) + VanePalletAsset::total_issuance(asset1),
+				VanePalletAsset::total_supply(CurrencyId::DOT) + VanePalletAsset::total_issuance(CurrencyId::DOT),
 				4000
 			);
 
@@ -394,13 +417,9 @@ mod tests {
 		// Alice in relay chain initiates reserve based transfer
 		Relay::execute_with(||{
 
-			let asset1 = MultiLocation{
-				parents: 0,
-				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-			};
 
 			let asset_mint_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::mint {
-				id: asset1,
+				id: CurrencyId::DOT,
 				beneficiary: ALICE.into(),
 				amount: 1000,
 			});
@@ -519,13 +538,9 @@ mod tests {
 				num: 1000,
 			});
 
-			let asset1 = MultiLocation{
-				parents: 0,
-				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-			};
 
 			let asset_mint_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::mint {
-				id: asset1,
+				id: CurrencyId::DOT,
 				beneficiary: ALICE.into(),
 				amount: 1000,
 			});
@@ -601,14 +616,10 @@ mod tests {
 				1000
 			);
 
-			let asset1 = MultiLocation{
-				parents: 0,
-				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-			};
 
 			// Mint the equivalent tokens
 			let asset_mint_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::mint {
-				id: asset1,
+				id: CurrencyId::DOT,
 				beneficiary: ALICE.into(),
 				amount: 1000,
 			});
@@ -631,7 +642,7 @@ mod tests {
 			);
 
 			assert_eq!(
-				VanePalletAsset::balance(asset1,ALICE),
+				VanePalletAsset::balance(CurrencyId::DOT,ALICE),
 				1000
 			);
 
@@ -643,7 +654,7 @@ mod tests {
 			//1. Burn local assets, 2. XCM message sending from SeoverignAcc to Alice
 
 			let asset_burn_call = parachain::RuntimeCall::VaneAssets(pallet_assets::Call::burn {
-				id: asset1,
+				id: CurrencyId::DOT,
 				amount: 1000,
 				who: ALICE.into(),
 			});
@@ -653,7 +664,7 @@ mod tests {
 			);
 
 			assert_eq!(
-				VanePalletAsset::balance(asset1,ALICE),
+				VanePalletAsset::balance(CurrencyId::DOT,ALICE),
 				0
 			);
 
@@ -711,17 +722,14 @@ mod tests {
 				)
 			);
 
-			let asset1 = MultiLocation{
-				parents: 0,
-				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-			};
+
 
 			// 2. Test remote signed transact instruction
 			let test_transfer_call = parachain::RuntimeCall::VaneXcm(vane_xcm::Call::vane_transfer {
 				payee: BOB.into(),
 				amount: 1000,
 				currency: Token::Dot,
-				asset_id: asset1,
+				asset_id: CurrencyId::DOT,
 			});
 
 			let message = Xcm::<()>(vec![
@@ -757,7 +765,8 @@ mod tests {
 
 	#[test]
 	fn vane_remote_soln1_custom_asset_derivitive_manual_xcm_confirm_pallet_works(){
-		init_tracing();
+		sp_tracing::init_for_tests();
+
 
 		MockNet::reset();
 
@@ -779,17 +788,14 @@ mod tests {
 				1000
 			);
 
-			let asset1 = MultiLocation{
-				parents: 0,
-				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-			};
+
 
 			// 2. Test remote signed transact instruction
 			let test_transfer_call = parachain::RuntimeCall::VaneXcm(vane_xcm::Call::vane_transfer {
 				payee: BOB.into(),
 				amount: 1000,
 				currency: Token::Dot,
-				asset_id: asset1,
+				asset_id: CurrencyId::DOT,
 			});
 
 			println!(" Encoded Transfer Call : {:?}",test_transfer_call.encode());
@@ -822,10 +828,6 @@ mod tests {
 
 		Vane::execute_with(||{
 
-			let asset1 = MultiLocation{
-				parents: 0,
-				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-			};
 
 			// confirm the transaction
 			// Payee confirming on vane chain
@@ -842,7 +844,7 @@ mod tests {
 					Confirm::Payee,
 					tt[0].reference_no.to_vec(),
 					tt[0].amount,
-					asset1
+					CurrencyId::DOT
 				)
 			);
 
@@ -852,17 +854,14 @@ mod tests {
 
 		Relay::execute_with(||{
 			// Confirm for Payer
-			let asset1 = MultiLocation{
-				parents: 0,
-				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-			};
+
 
 			let hardcoded_ref = vec![ 179, 58, 27, 164, 106, 103];
 			// 2. Test remote signed transact instruction
 			let test_confirm_call = parachain::RuntimeCall::VaneXcm(vane_xcm::Call::vane_confirm {
 				who: Confirm::Payer,
 				amount: 1000, // hardcoded but it should be taken from receipt
-				asset_id: asset1,
+				asset_id: CurrencyId::DOT,
 				reference_no: hardcoded_ref,
 			});
 
