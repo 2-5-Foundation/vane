@@ -20,7 +20,7 @@ serde = {version = "1.0.160", features = ["derive"]}
 color-print = "0.3.4"
 futures ="*"
 # Local
-vane-runtime = {path = "../runtime"}
+vane-para-runtime = {path = "../runtime/vane-parachain-runtime"}
 
 # Substrate
 frame-benchmarking = {git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0"}
@@ -83,11 +83,11 @@ substrate-build-script-utils = {git = "https://github.com/paritytech/substrate",
 default = []
 runtime-benchmarks = [
   "try-runtime-cli/try-runtime",
-  "vane-runtime/runtime-benchmarks",
+  "vane-para-runtime/runtime-benchmarks",
   "polkadot-cli/runtime-benchmarks",
 ]
 try-runtime = [
   "try-runtime-cli/try-runtime",
-  "vane-runtime/try-runtime",
+  "vane-para-runtime/try-runtime",
   "dep:sp-io",
 ]

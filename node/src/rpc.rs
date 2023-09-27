@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use vane_runtime::{opaque::Block, AccountId, Balance, Nonce};
+use vane_para_runtime::{opaque::Block, AccountId, Balance, Nonce};
 
 use sc_client_api::AuxStore;
 pub use sc_rpc::{DenyUnsafe, SubscriptionTaskExecutor};

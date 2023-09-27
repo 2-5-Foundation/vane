@@ -1,5 +1,5 @@
 use cumulus_primitives_core::ParaId;
-use vane_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
+use vane_para_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -11,11 +11,11 @@ use xcm::prelude::*;
 use codec::{Encode,Decode};
 use sp_core::{crypto::{Ss58AddressFormatRegistry, Ss58Codec}};
 use sp_runtime::{MultiSigner};
-use vane_runtime::CurrencyId::DOT;
+use vane_para_runtime::CurrencyId::DOT;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec =
-	sc_service::GenericChainSpec<vane_runtime::GenesisConfig, Extensions>;
+	sc_service::GenericChainSpec<vane_para_runtime::GenesisConfig, Extensions>;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
@@ -64,8 +64,8 @@ where
 /// Generate the session keys from individual elements.
 ///
 /// The input must be a tuple of individual keys (a single arg for now since we have just one key).
-pub fn template_session_keys(keys: AuraId) -> vane_runtime::SessionKeys {
-	vane_runtime::SessionKeys { aura: keys }
+pub fn template_session_keys(keys: AuraId) -> vane_para_runtime::SessionKeys {
+	vane_para_runtime::SessionKeys { aura: keys }
 }
 
 pub fn development_config() -> ChainSpec {
@@ -211,7 +211,7 @@ fn testnet_genesis(
 	endowed_accounts: Vec<AccountId>,
 	root_key: Option<AccountId>,
 	id: ParaId,
-) -> vane_runtime::GenesisConfig {
+) -> vane_para_runtime::GenesisConfig {
 	let alice = get_from_seed::<sr25519::Public>("Alice");
 	let bob = get_from_seed::<sr25519::Public>("Bob");
 
@@ -224,18 +224,18 @@ fn testnet_genesis(
 	let para_account = sp_runtime::AccountId32::from_ss58check(&sovererign_acount).unwrap();
 
 
-	vane_runtime::RuntimeGenesisConfig {
-		system: vane_runtime::SystemConfig {
-			code: vane_runtime::WASM_BINARY
+	vane_para_runtime::RuntimeGenesisConfig {
+		system: vane_para_runtime::SystemConfig {
+			code: vane_para_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
 				.to_vec(),
 			..Default::default()
 		},
-		balances: vane_runtime::BalancesConfig {
+		balances: vane_para_runtime::BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
 		},
 
-		vane_assets: vane_runtime::VaneAssetsConfig {
+		vane_assets: vane_para_runtime::VaneAssetsConfig {
 
 			metadata: vec![(DOT,v_dot.clone(), v_dot,10)],
 
@@ -245,22 +245,22 @@ fn testnet_genesis(
 
 		},
 
-		vane_xcm: vane_runtime::VaneXcmConfig {
+		vane_xcm: vane_para_runtime::VaneXcmConfig {
 			para_account: Some(para_account)
 		},
 
-		parachain_info: vane_runtime::ParachainInfoConfig {
+		parachain_info: vane_para_runtime::ParachainInfoConfig {
 			parachain_id: id,
 			..Default::default()
 		},
 
-		collator_selection: vane_runtime::CollatorSelectionConfig {
+		collator_selection: vane_para_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
 			..Default::default()
 		},
 
-		session: vane_runtime::SessionConfig {
+		session: vane_para_runtime::SessionConfig {
 			keys: invulnerables
 				.into_iter()
 				.map(|(acc, aura)| {
@@ -276,13 +276,13 @@ fn testnet_genesis(
 		// of this.
 		aura: Default::default(),
 		aura_ext: Default::default(),
-		sudo: vane_runtime::SudoConfig { key: root_key },
-		council: vane_runtime::CouncilConfig {
+		sudo: vane_para_runtime::SudoConfig { key: root_key },
+		council: vane_para_runtime::CouncilConfig {
 			phantom: std::marker::PhantomData,
 			members: endowed_accounts.iter().take(4).map(|acc| acc.clone()).collect::<Vec<_>>(),
 		},
 		parachain_system: Default::default(),
-		polkadot_xcm: vane_runtime::PolkadotXcmConfig {
+		polkadot_xcm: vane_para_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 			..Default::default()
 		},
