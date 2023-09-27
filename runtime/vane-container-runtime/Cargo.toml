@@ -111,6 +111,11 @@ array-bytes = "6.1.0"
 hex = "0.4.3"
 hex-literal = { version = "0.4.1" }
 
+# Tanssi
+pallet-author-inherent = { git = "https://github.com/moondance-labs/moonkit", branch = "tanssi-polkadot-v1.1.0", default-features = false }
+pallet-cc-authorities-noting = {git = "https://github.com/moondance-labs/tanssi", branch = "master" }
+
+
 
 [features]
 default = [
@@ -173,7 +178,9 @@ std = [
 	"sp-version/std",
 	"xcm-builder/std",
 	"xcm-executor/std",
-	"xcm/std"
+	"xcm/std",
+	#Tanssi
+	"pallet-author-inherent/std",
 ]
 
 runtime-benchmarks = [
