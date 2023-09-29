@@ -43,6 +43,9 @@ use assets_common::foreign_creators::ForeignCreators;
 use assets_common::matching::FromSiblingParachain;
 // use vane_xcm::{orml_xtokens,orml_tokens,orml_traits};
 
+// Tanssi
+use nimbus_primitives;
+//use tp_consensus;
 
 
 use sp_std::prelude::*;
@@ -127,7 +130,7 @@ pub type SignedExtra = (
 
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
-	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
@@ -429,7 +432,7 @@ parameter_types! {
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type OnChargeTransaction =
-		pallet_transaction_payment::CurrencyAdapter<Balances, DealWithFees<Runtime>>;
+	pallet_transaction_payment::CurrencyAdapter<Balances, DealWithFees<Runtime>>;
 	type OperationalFeeMultiplier = ConstU8<5>;
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
@@ -1031,8 +1034,8 @@ impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
 				relay_chain_slot,
 				sp_std::time::Duration::from_secs(6),
 			)
-			.create_inherent_data()
-			.expect("Could not create the timestamp inherent data");
+				.create_inherent_data()
+				.expect("Could not create the timestamp inherent data");
 
 		inherent_data.check_extrinsics(block)
 	}

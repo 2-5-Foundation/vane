@@ -5,18 +5,7 @@ panic = "unwind"
 members = [
 	"node",
 	"pallets/*",
-	"runtime/*",
+	"runtime/vane-parachain-runtime",
 ]
 
-[workspace.package]
-authors = [ "Vane" ]
-repository = ""
 
-[workspace.dependencies]
-syn = "2.0.28"  # Specify the version you want here
-
-# ...
-
-# Specify an override for syn in the [package.overrides] section
-#[package.overrides]
-#syn = "2.0.28"
