@@ -9,10 +9,12 @@ use pallet_assets;
 
 pub mod utils {
 	use core::ops::Add;
+	use sp_std::ops::{Mul, Sub};
 	use frame_support::traits::UnfilteredDispatchable;
 	use frame_system::RawOrigin;
     use sp_runtime::{MultiAddress, traits::StaticLookup};
 	use sp_runtime::DispatchError::BadOrigin;
+	use sp_runtime::traits::Scale;
 	use vane_payment::helper::Token;
     use xcm::{
         v3::{
@@ -26,7 +28,7 @@ pub mod utils {
     use sp_std::{vec::Vec,vec};
     use sp_std::boxed::Box;
 	use xcm::latest::Parent;
-	use xcm::prelude::{AccountId32, GeneralIndex, Here, PalletInstance, TransferAsset, X2};
+	use xcm::prelude::{AccountId32, All, BuyExecution, DepositAsset, GeneralIndex, Here, PalletInstance, TransferAsset, WithdrawAsset, X2};
 
 	use super::*;
 
@@ -95,11 +97,13 @@ pub mod utils {
 			// Update for Payer/Sender Txn receipt
 			let existing_payer_receipt = vane_payment::PayerTxnReceipt::<T>::get(&payer,&payee);
 
-			if let Some(receipt) = existing_payer_receipt {
+			if let Some(mut receipt) = existing_payer_receipt {
 
-				vane_payment::PayerTxnReceipt::<T>::mutate(&payer, &payee, |receipt_inner|{
-					receipt_inner.clone().unwrap().update_txn(amount)
-				});
+				// vane_payment::PayerTxnReceipt::<T>::mutate(&payer, &payee, |receipt_inner|{
+				// 	receipt_inner.clone().unwrap().update_txn(amount)
+				// });
+				receipt.update_txn(amount);
+				receipt.update_amount(amount);
 
 			}else{
 
@@ -182,27 +186,34 @@ pub mod utils {
 			let issuer = ParaAccount::<T>::get().unwrap();
 
 			// Burn the asset in the multi_id account
-			let amount: <T as pallet_assets::Config>::Balance = amount.try_into().map_err(|_| Error::<T>::UnexpectedError)? ;
+			let amount_type: <T as pallet_assets::Config>::Balance = amount.try_into().map_err(|_| Error::<T>::UnexpectedError)? ;
 
 			<pallet_assets::Pallet<T>>::burn(
 				RawOrigin::Signed(issuer).into(),
 				asset_id,
-				multi_id,
-				amount
+				multi_id.clone(),
+				amount_type
 			)?;
 
 			// Change the status in the payer receipt
 
 
 			// Send XCM instruction to send funds from Parachain sovereign account to payee acount
-			let payee_id:[u8;32] = payee.encode().try_into().unwrap();
+			//let payee_id:[u8;32] = payee.encode().try_into().unwrap();
+
+			// Take 1 amount
+
+			let new_amount = amount.sub(10_000_000_000);
 
 			let message = Xcm::<()>(vec![
 				// Transfer equivalent funds from Sovereign Account to payee account
-				TransferAsset {
-					assets: (Here, 999).into(), // We must have a function to calculate fees
-					beneficiary: (AccountId32 {network: None, id: payee_id}).into(),
-				}
+				// TransferAsset {
+				// 	assets: (Here, amount).into(), // We must have a function to calculate fees
+				// 	beneficiary: (AccountId32 {network: None, id: payee.encode().try_into().unwrap()}).into(),
+				// }
+				WithdrawAsset((Here,new_amount).into()),
+				BuyExecution { fees: (Here,new_amount).into(), weight_limit: WeightLimit::Unlimited },
+				DepositAsset { assets: All.into(), beneficiary:  (AccountId32 {network: None, id: payee.encode().try_into().unwrap()}).into() }
 			]);
 
 			<pallet_xcm::Pallet<T>>::send_xcm(Here,Parent,message).map_err(|_| Error::<T>::ErrorSendingXcm)?;

@@ -72,7 +72,8 @@ mod pallet{
 		UnexpectedError,
 		NotSupportedYet,
 		NotTheCaller,
-		ErrorSendingXcm
+		ErrorSendingXcm,
+		ReceiptNotFound
 	}
 
 	#[pallet::event]
@@ -295,6 +296,13 @@ mod pallet{
 			ensure!(caller == sender, Error::<T>::NotTheCaller);
 
 			Ok(())
+		}
+		// Read receipt
+
+		pub fn read_payer_receipt(origin: OriginFor<T>,payee: T:: AccountId) -> Result<TxnReceipt<T>, DispatchError>{
+			let payer = ensure_signed(origin)?;
+			let receipt = vane_payment::PayerTxnReceipt::<T>::get(payer,payee).ok_or(Error::<T>::ReceiptNotFound)?;
+			Ok(receipt)
 		}
 
 	}

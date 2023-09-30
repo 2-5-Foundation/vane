@@ -389,6 +389,7 @@ mod tests {
 	use crate::xcm_eml_testing::accounts::{ALICE,BOB,CHARLIE};
 	use xcm::VersionedXcm;
 	use sp_tracing;
+	use vane_payment::Confirm;
 	use vane_primitive::CurrencyId::DOT;
 
 	#[test]
@@ -558,20 +559,81 @@ mod tests {
 			//let amount = 1_000_000u128;
 
 			let alice = get_account_id_from_seed::<sr25519::Public>(ALICE);
+			let bob = get_account_id_from_seed::<sr25519::Public>(BOB);
+
 
 			type VaneOrigin = <VaneParachain as Parachain>::RuntimeOrigin;
 			type VaneEvents = <VaneParachain as Parachain>::RuntimeEvent;
 			type VaneCall = <VaneParachain as Parachain>::RuntimeCall;
 			type VaneSystem = <VaneParachain as Parachain>::System;
 
-			VaneSystem::events().iter().for_each(|e| println!("{:#?}",e));
+			VaneSystem::events().iter().for_each(|e| println!("{:#?} \n",e));
 
 			assert_eq!(
-				<VaneParachain as VaneParachainPallet>::VaneAssets::balance(DOT,alice),
+				<VaneParachain as VaneParachainPallet>::VaneAssets::balance(DOT,alice.clone()),
 				999959040000
-			)
-		})
+			);
 
+			// Vane transfer internally
+			println!("Vane Transfer Internaly \n");
+
+			assert_ok!(
+				<VaneParachain as VaneParachainPallet>::VaneXcm::vane_transfer(
+					VaneOrigin::signed(alice.clone()),
+					bob.clone().into(),
+					999959040000,
+					Token::Dot,
+					DOT
+				)
+			);
+
+			VaneSystem::events().iter().for_each(|e| println!("{:#?} \n",e));
+
+			// Confirmation zone
+			// Bob -> Alice
+			println!(" Confirmation zone \n");
+
+			//Fetch the reference Id
+			let receipt = <VaneParachain as VaneParachainPallet>::VaneXcm::read_payer_receipt(
+				VaneOrigin::signed(alice.clone()),
+				bob.clone()
+			);
+
+			println!(" Receipt: {:?} \n",receipt);
+
+			assert_ok!(
+				<VaneParachain as VaneParachainPallet>::VaneXcm::vane_confirm(
+					VaneOrigin::signed(bob.clone()),
+					Confirm::Payee,
+					receipt.clone().unwrap().reference_no.to_vec(),
+					receipt.clone().unwrap().amount,
+					DOT
+				)
+			);
+
+			assert_ok!(
+				<VaneParachain as VaneParachainPallet>::VaneXcm::vane_confirm(
+					VaneOrigin::signed(alice.clone()),
+					Confirm::Payer,
+					receipt.clone().unwrap().reference_no.to_vec(),
+					receipt.unwrap().amount,
+					DOT
+				)
+			);
+
+			println!("Vane last events ");
+
+			VaneSystem::events().iter().for_each(|e| println!("{:#?} \n",e));
+
+		});
+
+		PolkadotMain::execute_with(||{
+			type PolkadotSystem = <PolkadotMain as RelayChain>::System;
+
+			println!(" RelayChain last events");
+
+			PolkadotSystem::events().iter().for_each(|e| println!("{:#?}",e));
+		})
 
 	}
 }
