@@ -601,6 +601,9 @@ mod tests {
 
 			println!(" Receipt: {:?} \n",receipt);
 
+			// Bob Vane account
+			println!("Vane Bob: {:?}", bob.clone());
+
 			assert_ok!(
 				<VaneParachain as VaneParachainPallet>::VaneXcm::vane_confirm(
 					VaneOrigin::signed(bob.clone()),
@@ -621,7 +624,7 @@ mod tests {
 				)
 			);
 
-			println!("Vane last events ");
+			println!("Vane last events \n ");
 
 			VaneSystem::events().iter().for_each(|e| println!("{:#?} \n",e));
 
@@ -630,7 +633,13 @@ mod tests {
 		PolkadotMain::execute_with(||{
 			type PolkadotSystem = <PolkadotMain as RelayChain>::System;
 
-			println!(" RelayChain last events");
+			let alice = get_account_id_from_seed::<sr25519::Public>(ALICE);
+			let bob = get_account_id_from_seed::<sr25519::Public>(BOB);
+
+			println!(" RelayChain last events \n");
+
+			// print relay Bob account
+			println!(" Relay Bob: {:?} \n",bob);
 
 			PolkadotSystem::events().iter().for_each(|e| println!("{:#?}",e));
 		})

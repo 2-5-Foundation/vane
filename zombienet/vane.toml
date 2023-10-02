@@ -2,9 +2,9 @@
 bootnode = false
 
 [relaychain]
-chain = "polkadot"
+chain = "rococo-local"
 default_command = "../bin/polkadot"
-chain_spec_path = "./zombienet/rococo.json"
+#chain_spec_path = "./zombienet/rococo.json"
 bootnode = false
 
   [[relaychain.nodes]]
