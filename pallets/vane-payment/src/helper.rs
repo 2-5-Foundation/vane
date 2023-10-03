@@ -141,8 +141,8 @@ pub mod utils {
 
 	#[derive(Encode, Decode, Clone, PartialEq, Eq,MaxEncodedLen, RuntimeDebug, TypeInfo)]
 	pub enum Token {
-		Dot,
-		Usdt
+		DOT,
+		USDT
 	}
 
 	#[derive(Encode, Decode, Clone, PartialEq, Eq,MaxEncodedLen, RuntimeDebug, TypeInfo)]

@@ -21,7 +21,7 @@ mod pallet{
 	use vane_payment;
 	use sp_runtime::traits::{StaticLookup};
 	use frame_support::dispatch::RawOrigin;
-
+	//use vane_primitive::CurrencyId;
 
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
@@ -147,15 +147,16 @@ mod pallet{
 			let multi_id = Self::vane_multisig_record(caller, payee_acc, amount, currency.clone())?;
 
 			// Check the Token type
+
 			match currency {
-				Token::Dot => {
+				Token::DOT => {
 
 					let multi_id_acc = T::Lookup::unlookup(multi_id.clone());
 					let asset = asset_id;
 
 					Self::vane_xcm_transfer_dot(amount,multi_id_acc,multi_id,asset)?;
 				},
-				Token::Usdt => {
+				Token::USDT => {
 					Err(Error::<T>::NotSupportedYet)?
 				}
 			};
