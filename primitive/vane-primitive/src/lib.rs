@@ -356,6 +356,9 @@ impl<T: pallet_assets::Config > VaneMultiCurrency<T::AccountId> for MultiCurrenc
 		let origin = RawOrigin::Signed(from.clone());
 		let oo = T::RuntimeOrigin::from(origin);
 
+		// 1. Construct a multi id account
+		// send the funds from alice to the multi id account ( Alice, Bob)
+
 		let to_account = T::Lookup::unlookup(to.clone());
 		//<pallet_assets::Pallet<T>>::transfer(origin,currency_id,to.into(),amount)
 		pallet_assets::Call::<T,()>::transfer {

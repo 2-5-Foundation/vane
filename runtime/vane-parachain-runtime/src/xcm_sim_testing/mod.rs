@@ -728,7 +728,7 @@ mod tests {
 			let test_transfer_call = parachain::RuntimeCall::VaneXcm(vane_xcm::Call::vane_transfer {
 				payee: BOB.into(),
 				amount: 1000,
-				currency: Token::Dot,
+				currency: Token::DOT,
 				asset_id: CurrencyId::DOT,
 			});
 
@@ -794,7 +794,7 @@ mod tests {
 			let test_transfer_call = parachain::RuntimeCall::VaneXcm(vane_xcm::Call::vane_transfer {
 				payee: BOB.into(),
 				amount: 1000,
-				currency: Token::Dot,
+				currency: Token::DOT,
 				asset_id: CurrencyId::DOT,
 			});
 

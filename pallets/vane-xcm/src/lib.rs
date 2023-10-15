@@ -101,7 +101,6 @@ mod pallet{
 			reference_no: Vec<u8>,
 		},
 		MessageTransferedToPolkadot,
-		TestStored,
 
 	}
 
@@ -120,16 +119,6 @@ mod pallet{
 
 		) -> DispatchResult{
 			// log the origin
-
-			// Map multilocation to native account address
-
-			//let caller = sp_runtime::AccountId32::from(origin);
-
-			// log::info!(
-			// 	target: "",
-			// 	" origin {:?}",
-			// 	Ok(origin),
-			// );
 
 			let caller = ensure_signed(origin.clone())?;
 			log::info!(
@@ -274,31 +263,11 @@ mod pallet{
 			Ok(())
 		}
 
-		#[pallet::call_index(2)]
-		#[pallet::weight(10)]
-		pub fn test_storing(origin:OriginFor<T>,acc:T::AccountId,num:u32) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			TestStorage::<T>::set(&acc,num);
-			Self::deposit_event(Event::TestStored);
-			Ok(())
-		}
-
 
 
 	}
 
 	impl<T: Config> Pallet<T>{
-		pub fn get_test_stored(account: T::AccountId) -> u32 {
-			let value = TestStorage::<T>::get(account);
-			value
-		}
-		pub fn record_receipt(origin:OriginFor<T>,sender:T::AccountId,payee: T::AccountId, amount: u128) -> DispatchResult {
-			let caller = ensure_signed(origin)?;
-			ensure!(caller == sender, Error::<T>::NotTheCaller);
-
-			Ok(())
-		}
-		// Read receipt
 
 		pub fn read_payer_receipt(origin: OriginFor<T>,payee: T:: AccountId) -> Result<TxnReceipt<T>, DispatchError>{
 			let payer = ensure_signed(origin)?;

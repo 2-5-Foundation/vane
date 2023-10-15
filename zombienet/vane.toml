@@ -9,10 +9,12 @@ bootnode = false
   [[relaychain.nodes]]
   name = "alice"
   validator = true
+  ws_port = 8000
 
   [[relaychain.nodes]]
   name = "bob"
   validator = true
+  ws_port = 8050
 
 [[parachains]]
 id = 2000

@@ -453,7 +453,7 @@ mod tests {
 			let vane_xcm_transfer_call = VaneCall::VaneXcm(vane_xcm::Call::vane_transfer {
 				payee: bob.into(),
 				amount,
-				currency: Token::Dot,
+				currency: Token::DOT,
 				asset_id: DOT,
 			});
 
@@ -582,7 +582,7 @@ mod tests {
 					VaneOrigin::signed(alice.clone()),
 					bob.clone().into(),
 					999959040000,
-					Token::Dot,
+					Token::DOT,
 					DOT
 				)
 			);
