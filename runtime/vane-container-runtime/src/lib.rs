@@ -41,11 +41,11 @@ use vane_xcm;
 use assets_common;
 use assets_common::foreign_creators::ForeignCreators;
 use assets_common::matching::FromSiblingParachain;
-// use vane_xcm::{orml_xtokens,orml_tokens,orml_traits};
+
 
 // Tanssi
 use nimbus_primitives;
-//use tp_consensus;
+use tp_consensus;
 
 
 use sp_std::prelude::*;
@@ -68,7 +68,6 @@ use frame_system::{
 };
 use parachain_info;
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
-pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 use xcm_config::{RelayLocation, XcmConfig, XcmOriginToTransactDispatchOrigin};
 use xcm_builder::{AccountId32Aliases, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
@@ -235,11 +234,7 @@ pub mod opaque {
 	pub type BlockId = generic::BlockId<Block>;
 }
 
-impl_opaque_keys! {
-	pub struct SessionKeys {
-		pub aura: Aura,
-	}
-}
+
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -253,11 +248,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	state_version: 1,
 };
 
-/// This determines the average expected block time that we are targeting.
-/// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
-/// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
-/// up by `pallet_aura` to implement `fn slot_duration()`.
-///
+
 /// Change this to adjust the block time.
 pub const MILLISECS_PER_BLOCK: u64 = 12000;
 
@@ -375,7 +366,10 @@ impl frame_system::Config for Runtime {
 impl pallet_timestamp::Config for Runtime {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
-	type OnTimestampSet = Aura;
+	type OnTimestampSet = tp_consensus::OnTimestampSet<
+		<Self as pallet_author_inherent::Config>::SlotBeacon,
+		ConstU64<{ SLOT_DURATION }>,
+	>;
 	type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
 	type WeightInfo = ();
 }
@@ -384,10 +378,6 @@ parameter_types! {
 	pub const UncleGenerations: u32 = 0;
 }
 
-impl pallet_authorship::Config for Runtime {
-	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-	type EventHandler = (CollatorSelection,);
-}
 
 parameter_types! {
 	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
@@ -465,7 +455,6 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 }
 impl parachain_info::Config for Runtime {}
 
-impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -490,19 +479,6 @@ parameter_types! {
 	pub const Offset: u32 = 0;
 }
 
-impl pallet_session::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type ValidatorId = <Self as frame_system::Config>::AccountId;
-	// we don't have stash and controller, thus we don't need the convert as well.
-	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
-	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
-	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
-	type SessionManager = CollatorSelection;
-	// Essentially just Aura, but lets be pedantic.
-	type SessionHandler = <SessionKeys as sp_runtime::traits::OpaqueKeys>::KeyTypeIdProviders;
-	type Keys = SessionKeys;
-	type WeightInfo = ();
-}
 
 
 impl pallet_sudo::Config for Runtime {
@@ -516,32 +492,12 @@ parameter_types! {
 	pub const CouncilMaxMembers: u32 = 25;
 }
 
-type CouncilCollective = pallet_collective::Instance1;
-impl pallet_collective::Config<CouncilCollective> for Runtime {
-	type RuntimeOrigin = RuntimeOrigin;
-	type Proposal = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type MotionDuration = CouncilMotionDuration;
-	type MaxProposals = CouncilMaxProposals;
-	type MaxMembers = CouncilMaxMembers;
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
-	type SetMembersOrigin = EnsureRoot<AccountId>;
-	type MaxProposalWeight = MaxCollectivesProposalWeight;
-}
 
 use sp_core::ConstBool;
 use sp_runtime::traits::AccountIdConversion;
 use xcm_executor::traits::ConvertLocation;
 pub use vane_primitive::{CurrencyId, VaneDerivedAssets, VaneForeignCreators};
 
-
-impl pallet_aura::Config for Runtime {
-	type AuthorityId = AuraId;
-	type MaxAuthorities = ConstU32<100_000>;
-	type DisabledValidators = ();
-	type AllowMultipleBlocksPerSlot = ConstBool<false>;
-}
 
 
 parameter_types! {
@@ -554,28 +510,8 @@ parameter_types! {
 	pub const StakingAdminBodyId: BodyId = BodyId::Defense;
 }
 
-/// We allow root and the StakingAdmin to execute privileged collator selection operations.
-pub type CollatorSelectionUpdateOrigin = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	EnsureXcm<IsVoiceOfBody<RelayLocation, StakingAdminBodyId>>,
->;
 
 
-impl pallet_collator_selection::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type UpdateOrigin = CollatorSelectionUpdateOrigin;
-	type PotId = PotId;
-	type MaxCandidates = ConstU32<100>;
-	type MinEligibleCollators = ConstU32<4>;
-	type MaxInvulnerables = ConstU32<20>;
-	// should be a multiple of session or things will get inconsistent
-	type KickThreshold = Period;
-	type ValidatorId = <Self as frame_system::Config>::AccountId;
-	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
-	type ValidatorRegistration = Session;
-	type WeightInfo = ();
-}
 // Custom pallets Implementation
 impl vane_order::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -641,9 +577,6 @@ impl pallet_assets::Config for Runtime {
 	type BenchmarkHelper = xcm_config::XcmBenchmarkHelper;
 }
 
-// impl vane_wallet_less::Config for Runtime {
-
-// }
 
 // Vane XCM & ORML-XTOKENS
 
@@ -668,93 +601,22 @@ parameter_types! {
 }
 
 
+// Tanssi Pallets
+impl pallet_cc_authorities_noting::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type SelfParaId = parachain_info::Pallet<Runtime>;
+	type RelayChainStateProvider = cumulus_pallet_parachain_system::RelaychainDataProvider<Self>;
+	type AuthorityId = nimbus_primitives::NimbusId;
+	type WeightInfo = pallet_cc_authorities_noting::weights::SubstrateWeight<Runtime>;
+}
 
-
-
-pub struct TokenIdConvert;
-// impl Convert<u32, Option<MultiLocation>> for TokenIdConvert {
-// 	fn convert(id: u32) -> Option<MultiLocation> {
-// 		VaneAssetRegistry::<Runtime>::multilocation(&id).unwrap_or(None)
-// 	}
-// }
-//
-// impl Convert<MultiLocation, Option<u32>> for TokenIdConvert {
-// 	fn convert(location: MultiLocation) -> Option<u32> {
-// 		match location {
-//
-// 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
-// 				if para_id == u32::from(ParachainInfo::parachain_id()) =>
-// 				None, // No Native Token
-// 			_ => VaneAssetRegistry::<Runtime>::location_to_asset_id(location.clone()),
-// 		}
-// 	}
-// }
-
-// impl Convert<MultiAsset, Option<u32>> for TokenIdConvert {
-// 	fn convert(asset: MultiAsset) -> Option<u32> {
-// 		if let MultiAsset { id: Concrete(location), .. } = asset {
-// 			Self::convert(location)
-// 		} else {
-// 			None
-// 		}
-// 	}
-// }
-
-// pub struct AccountIdToMultiLocation;
-// impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
-// 	fn convert(account: AccountId) -> MultiLocation {
-// 		X1(AccountId32 { network: None, id: account.into() }).into()
-// 	}
-// }
-
-// parameter_types! {
-// 	pub enum CurrencyId {
-// 	DOT,
-// 	USDT,
-// 	USDC
-//  }
-// }
-
-
-// orml_traits::parameter_type_with_key! {
-//     pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
-//         match currency_id {
-//             1 => EXISTENTIAL_DEPOST,
-//             2|3 => 1u128,
-//         }
-//     }
-// }
-
-// pub struct CurrencyHooks<T>(PhantomData<T>);
-// impl<T:frame_system::Config> MutationHooks<T::AccountId, T::CurrencyId, T::Balance> for CurrencyHooks<T>
-// 	where
-// 		T::AccountId: From<AccountId32> + Into<AccountId32>,
-// 		T::CurrencyId: From<u32> + Into<u32>,
-// {
-// 	type OnDust = ();
-// 	type OnSlash =();
-// 	type PreDeposit = ();
-// 	type PostDeposit = ();
-// 	type PreTransfer = ();
-// 	type PostTransfer = ();
-// 	type OnNewTokenAccount = ();
-// 	type OnKilledTokenAccount = ();
-// }
-
-// impl orml_tokens::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type Balance = Balance;
-// 	type Amount = i128;
-// 	type CurrencyId = u8;
-// 	type WeightInfo = ();
-// 	type ExistentialDeposits = ExistentialDeposits;
-// 	type CurrencyHooks = CurrencyHooks<Runtime>;
-// 	type MaxLocks = ();
-// 	type MaxReserves = ();
-// 	type ReserveIdentifier = ();
-// 	type DustRemovalWhitelist = ();
-// }
-
+impl pallet_author_inherent::Config for Runtime {
+	type AuthorId = nimbus_primitives::NimbusId;
+	type AccountLookup = tp_consensus::NimbusLookUp;
+	type CanAuthor = pallet_cc_authorities_noting::CanAuthor<Runtime>;
+	type SlotBeacon = tp_consensus::AuraDigestSlotBeacon<Runtime>;
+	type WeightInfo = pallet_author_inherent::weights::SubstrateWeight<Runtime>;
+}
 
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -780,14 +642,10 @@ construct_runtime!(
 
 		// Governance
 		Sudo: pallet_sudo = 15,
-		Council: pallet_collective::<Instance1> = 16,
 
-		// Collator support. The order of these 4 are important and shall not change.
-		Authorship: pallet_authorship = 20,
-		CollatorSelection: pallet_collator_selection = 21,
-		Session: pallet_session = 22,
-		Aura: pallet_aura = 23,
-		AuraExt: cumulus_pallet_aura_ext = 24,
+		// ContainerChain Author Verification
+        AuthoritiesNoting: pallet_cc_authorities_noting = 20,
+        AuthorInherent: pallet_author_inherent = 21,
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue = 30,
@@ -811,21 +669,11 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_session, SessionBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
-		[pallet_collator_selection, CollatorSelection]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 	);
 }
 
 impl_runtime_apis! {
-	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-		fn slot_duration() -> sp_consensus_aura::SlotDuration {
-			sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
-		}
-
-		fn authorities() -> Vec<AuraId> {
-			Aura::authorities().into_inner()
-		}
-	}
 
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
@@ -959,6 +807,7 @@ impl_runtime_apis! {
 		}
 	}
 
+
 	#[cfg(feature = "try-runtime")]
 	impl frame_try_runtime::TryRuntime<Block> for Runtime {
 		fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
@@ -1042,7 +891,7 @@ impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {
-	Runtime = Runtime,
-	BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
-	CheckInherents = CheckInherents,
+    Runtime = Runtime,
+    BlockExecutor = pallet_author_inherent::BlockExecutor::<Runtime, Executive>
+    CheckInherents = CheckInherents,
 }

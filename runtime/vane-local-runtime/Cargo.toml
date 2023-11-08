@@ -28,7 +28,7 @@ vane-payment = { version = "1.0.0-dev", default-features = false, path = "../../
 vane-wallet-less = { version = "1.0.0-dev", default-features = false, path ="../../pallets/vane-wallet-less"}
 vane-xcm = {version = "1.0.0-dev", default-features = false,  path ="../../pallets/vane-xcm"}
 vane-primitive = { version = "1.0.0-dev", default-features = false, path ="../../primitive/vane-primitive"}
-# ORML
+
 
 # Substrate
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v1.0.0" }
