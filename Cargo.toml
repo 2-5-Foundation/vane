@@ -8,5 +8,6 @@ members = [
 	"runtime/vane-parachain-runtime",
 	"runtime/vane-container-runtime"
 ]
+resolver = "2"
 
 
