@@ -29,6 +29,7 @@ vane-xcm = {version = "1.0.0-dev", default-features = false,  path ="../../palle
 vane-primitive = { version = "1.0.0-dev", default-features = false, path ="../../primitive/vane-primitive"}
 
 
+
 # Tanssi
 tp-consensus = { git = "https://github.com/moondance-labs/tanssi", branch = "master", default-features = false }
 nimbus-primitives = { git = "https://github.com/moondance-labs/moonkit", branch = "tanssi-polkadot-v1.1.0", default-features = false }
