@@ -4,15 +4,15 @@ use sp_std::fmt::Debug;
 use sp_std::result;
 use codec::{FullCodec, MaxEncodedLen};
 use codec::{Decode, Encode};
-use frame_support::dispatch::{RawOrigin, UnfilteredDispatchable};
+use frame_support::dispatch::{RawOrigin};
 use frame_support::pallet_prelude::*;
-use frame_support::traits::{ContainsPair, EnsureOriginWithArg, Everything, OriginTrait};
+use frame_support::traits::{ContainsPair, EnsureOriginWithArg, Everything, OriginTrait, UnfilteredDispatchable};
 use frame_support::traits::fungibles::{Balanced, Inspect};
 use frame_support::traits::tokens::{Fortitude, Precision, Preservation, WithdrawConsequence};
 use frame_support::traits::tokens::Precision::BestEffort;
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
-use xcm::latest::prelude::*;
+use staging_xcm::latest::prelude::*;
 
 //
 // pub use primitive_mod::*;
@@ -52,8 +52,8 @@ use sp_core::serde::{Deserialize, Serialize};
 use sp_runtime::traits::{AtLeast32BitUnsigned, Convert, StaticLookup, Zero};
 use orml_xcm_support::{OnDepositFail, UnknownAsset};
 use sp_runtime::SaturatedConversion;
-use xcm_executor::Assets;
-use xcm_executor::traits::{ConvertLocation, Error, MatchesFungible, TransactAsset};
+use staging_xcm_executor::Assets;
+use staging_xcm_executor::traits::{ConvertLocation, Error, MatchesFungible, TransactAsset};
 use pallet_xcm::{EnsureXcm, Origin as XcmOrigin};
 
 // Struct for matching Vane custom derived assets
@@ -175,7 +175,7 @@ for VaneMultiCurrencyAdapter<
 	DepositFailureHandler,
 >
 {
-	fn deposit_asset(asset: &MultiAsset, location: &MultiLocation, _context: &XcmContext) -> xcm::v3::Result {
+	fn deposit_asset(asset: &MultiAsset, location: &MultiLocation, _context: &XcmContext) -> staging_xcm::v3::Result {
 		match (
 			AccountIdConvert::convert_location(location),
 			CurrencyIdConvert::convert(asset.clone()),

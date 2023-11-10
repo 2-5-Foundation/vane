@@ -33,15 +33,12 @@ use sp_runtime::{
 };
 
 /// Import Custom pallets.
-use vane_order;
 use vane_payment;
-use vane_wallet_less;
 use pallet_assets;
 use vane_xcm;
 use assets_common;
 use assets_common::foreign_creators::ForeignCreators;
 use assets_common::matching::FromSiblingParachain;
-// use vane_xcm::{orml_xtokens,orml_tokens,orml_traits};
 
 
 
@@ -574,20 +571,20 @@ impl pallet_collator_selection::Config for Runtime {
 	type WeightInfo = ();
 }
 // Custom pallets Implementation
-impl vane_order::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-}
+// impl vane_order::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type Currency = Balances;
+// }
 
 impl vane_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 }
 
-impl vane_register::Config for Runtime {
-	type Currency = Balances;
-	type RuntimeEvent = RuntimeEvent;
-}
+// impl vane_register::Config for Runtime {
+// 	type Currency = Balances;
+// 	type RuntimeEvent = RuntimeEvent;
+// }
 
 impl vane_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -793,8 +790,8 @@ construct_runtime!(
 		DmpQueue: cumulus_pallet_dmp_queue = 33,
 
 		// Custom Pallets
-		VaneRegister: vane_register = 50,
-		VaneOrder: vane_order = 51,
+		//VaneRegister: vane_register = 50,
+		//VaneOrder: vane_order = 51,
 		VanePayment: vane_payment = 52,
 		VaneXcm: vane_xcm = 53,
 

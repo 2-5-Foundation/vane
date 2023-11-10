@@ -33,11 +33,10 @@ use sp_runtime::{
 };
 
 /// Import Custom pallets.
-use vane_order;
-use vane_payment;
-use vane_wallet_less;
+// use vane_order;
+// use vane_payment;
 use pallet_assets;
-use vane_xcm;
+// use vane_xcm;
 use assets_common;
 use assets_common::foreign_creators::ForeignCreators;
 use assets_common::matching::FromSiblingParachain;
@@ -70,7 +69,7 @@ use parachain_info;
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 use xcm_config::{RelayLocation, XcmConfig, XcmOriginToTransactDispatchOrigin};
-use xcm_builder::{AccountId32Aliases, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
+use staging_xcm_builder::{AccountId32Aliases, FixedWeightBounds, ParentIsPreset, SiblingParachainConvertsVia};
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -85,13 +84,13 @@ pub use parachains_common::{
 	impls::{AccountIdOf, DealWithFees},
 	Balance, BlockNumber, Hash, Signature,
 };
-use polkadot_parachain::primitives::Sibling;
+use polkadot_parachain_primitives::primitives::Sibling;
 
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 
 // XCM Imports
-use xcm::latest::prelude::*;
-use xcm_executor::XcmExecutor;
+use staging_xcm::latest::prelude::*;
+use staging_xcm_executor::XcmExecutor;
 
 
 
@@ -248,6 +247,9 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	state_version: 1,
 };
 
+impl_opaque_keys! {
+    pub struct SessionKeys { }
+}
 
 /// Change this to adjust the block time.
 pub const MILLISECS_PER_BLOCK: u64 = 12000;
@@ -495,7 +497,7 @@ parameter_types! {
 
 use sp_core::ConstBool;
 use sp_runtime::traits::AccountIdConversion;
-use xcm_executor::traits::ConvertLocation;
+use staging_xcm_executor::traits::ConvertLocation;
 pub use vane_primitive::{CurrencyId, VaneDerivedAssets, VaneForeignCreators};
 
 
@@ -513,24 +515,24 @@ parameter_types! {
 
 
 // Custom pallets Implementation
-impl vane_order::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-}
+// impl vane_order::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type Currency = Balances;
+// }
+//
+// impl vane_payment::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type Currency = Balances;
+// }
 
-impl vane_payment::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-}
-
-impl vane_register::Config for Runtime {
-	type Currency = Balances;
-	type RuntimeEvent = RuntimeEvent;
-}
-
-impl vane_xcm::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-}
+// impl vane_register::Config for Runtime {
+// 	type Currency = Balances;
+// 	type RuntimeEvent = RuntimeEvent;
+// }
+//
+// impl vane_xcm::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// }
 
 
 
@@ -654,10 +656,10 @@ construct_runtime!(
 		DmpQueue: cumulus_pallet_dmp_queue = 33,
 
 		// Custom Pallets
-		VaneRegister: vane_register = 50,
-		VaneOrder: vane_order = 51,
-		VanePayment: vane_payment = 52,
-		VaneXcm: vane_xcm = 53,
+		// VaneRegister: vane_register = 50,
+		// VaneOrder: vane_order = 51,
+		// VanePayment: vane_payment = 52,
+		// VaneXcm: vane_xcm = 53,
 
 	}
 );

@@ -22,11 +22,15 @@ scale-info = { version = "2.5.0", default-features = false, features = ["derive"
 smallvec = "1.10.0"
 
 # Local
-vane-register = { version = "1.0.0-dev", default-features = false, path = "../../pallets/vane-register" }
-vane-order = { version = "1.0.0-dev", default-features =  false, path = "../../pallets/vane-order" }
-vane-payment = { version = "1.0.0-dev", default-features = false, path = "../../pallets/vane-payment"}
-vane-xcm = {version = "1.0.0-dev", default-features = false,  path ="../../pallets/vane-xcm"}
+#vane-register = { version = "1.0.0-dev", default-features = false, path = "../../pallets/vane-register" }
+#vane-order = { version = "1.0.0-dev", default-features =  false, path = "../../pallets/vane-order" }
+#vane-payment = { version = "1.0.0-dev", default-features = false, path = "../../pallets/vane-payment"}
+#vane-xcm = {version = "1.0.0-dev", default-features = false,  path ="../../pallets/vane-xcm"}
 vane-primitive = { version = "1.0.0-dev", default-features = false, path ="../../primitive/vane-primitive"}
+
+# ORML
+orml-traits = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "polkadot-v1.1.0" }
+orml-xcm-support = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "polkadot-v1.1.0" }
 
 
 # Tanssi
@@ -106,8 +110,11 @@ asset-hub-polkadot-runtime = { git = "https://github.com/paritytech/polkadot-sdk
 polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 rococo-runtime = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 rococo-runtime-constants = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
-# --**-----
 
+
+
+
+# --**-----
 
 staging-xcm = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 staging-xcm-executor = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
@@ -116,6 +123,9 @@ tracing = { version = "0.1.37" }
 sp-tracing = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "tracing-log"] }
 integration-tests-common = {git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
+
+
+
 array-bytes = "6.1.0"
 hex = "0.4.3"
 hex-literal = { version = "0.4.1" }
@@ -160,11 +170,15 @@ std = [
 	"polkadot-runtime-common/std",
 
 	# Vane pallets
-	"vane-register/std",
-	"vane-order/std",
-	"vane-payment/std",
-	"vane-xcm/std",
+#	"vane-register/std",
+#	"vane-order/std",
+#	"vane-payment/std",
+#	"vane-xcm/std",
 	"vane-primitive/std",
+
+	# ORML
+	"orml-traits/std",
+	"orml-xcm-support/std",
 
 
 	# Tanssi
