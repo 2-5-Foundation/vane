@@ -247,9 +247,6 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	state_version: 1,
 };
 
-impl_opaque_keys! {
-    pub struct SessionKeys { }
-}
 
 /// Change this to adjust the block time.
 pub const MILLISECS_PER_BLOCK: u64 = 12000;

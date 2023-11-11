@@ -1,4 +1,3 @@
-
 #[cfg(feature = "std")]
 fn main() {
 	substrate_wasm_builder::WasmBuilder::new()

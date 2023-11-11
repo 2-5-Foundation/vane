@@ -9,8 +9,6 @@ use frame_support::pallet_prelude::*;
 use frame_support::traits::{ContainsPair, EnsureOriginWithArg, Everything, OriginTrait, UnfilteredDispatchable};
 use frame_support::traits::fungibles::{Balanced, Inspect};
 use frame_support::traits::tokens::{Fortitude, Precision, Preservation, WithdrawConsequence};
-use frame_support::traits::tokens::Precision::BestEffort;
-use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
 use staging_xcm::latest::prelude::*;
 
