@@ -28,8 +28,8 @@ serde = { version = "1.0.163", default-features = false, features = ["alloc", "d
 
 
 # ORML
-orml-traits = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "polkadot-v1.1.0" }
-orml-xcm-support = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "polkadot-v1.1.0" }
+#orml-traits = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "polkadot-v1.1.0" }
+#orml-xcm-support = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "polkadot-v1.1.0" }
 
 
 [dev-dependencies]
@@ -55,6 +55,6 @@ std = [
 
 
 	# ORML
-	"orml-traits/std",
-	"orml-xcm-support/std"
+#	"orml-traits/std",
+#	"orml-xcm-support/std"
 ]

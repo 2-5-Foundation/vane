@@ -45,7 +45,7 @@ pub type LocalAssetTransactor =  vane_primitive::VaneMultiCurrencyAdapter<
 	LocationToAccountId,
 	CurrencyId,
 	MultiCurrencyConverter<Runtime>,
-	(),
+	// HandlingFailedDeposits
 >;
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,

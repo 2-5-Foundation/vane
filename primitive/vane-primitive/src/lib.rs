@@ -44,15 +44,74 @@ pub trait OrderTrait {
 
 
 // For Multi Currency usage
-use orml_traits::{GetByKey, parameter_type_with_key};
+//use orml_traits::{GetByKey, parameter_type_with_key};
 use pallet_assets::{AssetDetails, Config};
 use sp_core::serde::{Deserialize, Serialize};
 use sp_runtime::traits::{AtLeast32BitUnsigned, Convert, StaticLookup, Zero};
-use orml_xcm_support::{OnDepositFail, UnknownAsset};
 use sp_runtime::SaturatedConversion;
 use staging_xcm_executor::Assets;
 use staging_xcm_executor::traits::{ConvertLocation, Error, MatchesFungible, TransactAsset};
 use pallet_xcm::{EnsureXcm, Origin as XcmOrigin};
+
+
+//orml re written traits & macros and types
+/// A trait for querying a value by a key.
+pub trait GetByKey<Key, Value> {
+	/// Return the value.
+	fn get(k: &Key) -> Value;
+}
+
+/// Create new implementations of the `GetByKey` trait.
+///
+/// The implementation is typically used like a map or set.
+///
+/// Example:
+/// ```ignore
+/// use primitives::CurrencyId;
+/// parameter_type_with_key! {
+///     pub Rates: |currency_id: CurrencyId| -> u32 {
+///         match currency_id {
+///             CurrencyId::DOT => 1,
+///             CurrencyId::KSM => 2,
+///             _ => 3,
+///         }
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! parameter_type_with_key {
+	(
+		pub $name:ident: |$k:ident: $key:ty| -> $value:ty $body:block;
+	) => {
+		pub struct $name;
+		impl GetByKey<$key, $value> for $name {
+			fn get($k: &$key) -> $value {
+				$body
+			}
+		}
+	};
+}
+pub trait UnknownAssetTrait {
+	/// Deposit unknown asset.
+	fn deposit(asset: &MultiAsset, to: &MultiLocation) -> DispatchResult;
+
+	/// Withdraw unknown asset.
+	fn withdraw(asset: &MultiAsset, from: &MultiLocation) -> DispatchResult;
+}
+
+const NO_UNKNOWN_ASSET_IMPL: &str = "NoUnknownAssetImpl";
+
+impl UnknownAssetTrait for () {
+	fn deposit(_asset: &MultiAsset, _to: &MultiLocation) -> DispatchResult {
+		Err(DispatchError::Other(NO_UNKNOWN_ASSET_IMPL))
+	}
+	fn withdraw(_asset: &MultiAsset, _from: &MultiLocation) -> DispatchResult {
+		Err(DispatchError::Other(NO_UNKNOWN_ASSET_IMPL))
+	}
+}
+
+
+
 
 // Struct for matching Vane custom derived assets
 pub struct VaneDerivedAssets;
@@ -138,7 +197,7 @@ pub struct VaneMultiCurrencyAdapter<
 	AccountIdConvert,
 	CurrencyId,
 	CurrencyIdConvert,
-	DepositFailureHandler,
+	//DepositFailureHandler,
 >(
 	PhantomData<(
 		MultiCurrency,
@@ -148,19 +207,19 @@ pub struct VaneMultiCurrencyAdapter<
 		AccountIdConvert,
 		CurrencyId,
 		CurrencyIdConvert,
-		DepositFailureHandler,
+		//DepositFailureHandler,
 	)>,
 );
 
 impl<
 	MultiCurrency: VaneMultiCurrency<AccountId, CurrencyId = CurrencyId>,
-	UnknownAsset: orml_xcm_support::UnknownAsset,
+	UnknownAsset: UnknownAssetTrait,
 	Match: MatchesFungible<MultiCurrency::Balance>,
 	AccountId: Debug + Clone,
 	AccountIdConvert: ConvertLocation<AccountId>,
 	CurrencyId: FullCodec + Eq + PartialEq + Copy + Debug,
 	CurrencyIdConvert: Convert<MultiAsset, Option<CurrencyId>>,
-	DepositFailureHandler: OnDepositFail<CurrencyId, AccountId, MultiCurrency::Balance>,
+	//DepositFailureHandler: ,
 > TransactAsset
 for VaneMultiCurrencyAdapter<
 	MultiCurrency,
@@ -170,7 +229,7 @@ for VaneMultiCurrencyAdapter<
 	AccountIdConvert,
 	CurrencyId,
 	CurrencyIdConvert,
-	DepositFailureHandler,
+	//DepositFailureHandler,
 >
 {
 	fn deposit_asset(asset: &MultiAsset, location: &MultiLocation, _context: &XcmContext) -> staging_xcm::v3::Result {
@@ -180,11 +239,9 @@ for VaneMultiCurrencyAdapter<
 			Match::matches_fungible(asset),
 		) {
 			// known asset
-			(Some(who), Some(currency_id), Some(amount)) => MultiCurrency::deposit(currency_id, &who, amount)
-				.or_else(|err| DepositFailureHandler::on_deposit_currency_fail(err, currency_id, &who, amount)),
+			(Some(who), Some(currency_id), Some(amount)) => Ok(MultiCurrency::deposit(currency_id, &who, amount).unwrap()),// DepositFailAsset handler
 			// unknown asset
-			_ => UnknownAsset::deposit(asset, location)
-				.or_else(|err| DepositFailureHandler::on_deposit_unknown_asset_fail(err, asset, location)),
+			_ => Ok(UnknownAsset::deposit(asset, location).unwrap()), // DepositFailAsset handler
 		}
 	}
 
