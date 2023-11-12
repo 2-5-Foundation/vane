@@ -10,4 +10,5 @@ members = [
 ]
 resolver = "2"
 
-
+[patch.crates-io]
+sp-io = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.1.0" }

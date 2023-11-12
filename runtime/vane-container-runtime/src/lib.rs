@@ -233,6 +233,9 @@ pub mod opaque {
 	pub type BlockId = generic::BlockId<Block>;
 }
 
+impl_opaque_keys! {
+    pub struct SessionKeys { }
+}
 
 
 #[sp_version::runtime_version]
