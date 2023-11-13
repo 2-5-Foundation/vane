@@ -1,3 +1,4 @@
+use sp_std::marker::PhantomData;
 use super::{
 	AccountId, AllPalletsWithSystem, Balances, ParachainInfo, ParachainSystem, PolkadotXcm,
 	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
@@ -15,7 +16,10 @@ use staging_xcm::latest::prelude::*;
 use staging_xcm_builder::{AccountId32Aliases, AliasForeignAccountId32, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic};
 use staging_xcm_executor::XcmExecutor;
 use vane_primitive::{CurrencyId, MultiCurrencyAsset, MultiCurrencyConverter};
-use orml_xcm_support::IsNativeConcrete;
+//use orml_xcm_support::IsNativeConcrete;
+use sp_runtime::traits::{CheckedConversion, Convert};
+use staging_xcm_executor::traits::MatchesFungible;
+
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -35,6 +39,22 @@ pub type LocationToAccountId = (
 	// Straight up local `AccountId32` origins just alias directly to `AccountId`.
 	AccountId32Aliases<RelayNetwork, AccountId>,
 );
+
+pub struct IsNativeConcrete<CurrencyId, CurrencyIdConvert>(PhantomData<(CurrencyId, CurrencyIdConvert)>);
+impl<CurrencyId, CurrencyIdConvert, Amount> MatchesFungible<Amount> for IsNativeConcrete<CurrencyId, CurrencyIdConvert>
+	where
+		CurrencyIdConvert: Convert<MultiLocation, Option<CurrencyId>>,
+		Amount: TryFrom<u128>,
+{
+	fn matches_fungible(a: &MultiAsset) -> Option<Amount> {
+		if let (Fungible(ref amount), Concrete(ref location)) = (&a.fun, &a.id) {
+			if CurrencyIdConvert::convert(*location).is_some() {
+				return CheckedConversion::checked_from(*amount);
+			}
+		}
+		None
+	}
+}
 
 /// Means for transacting assets on this chain.
 pub type LocalAssetTransactor =  vane_primitive::VaneMultiCurrencyAdapter<
@@ -138,7 +158,7 @@ impl staging_xcm_executor::Config for XcmConfig {
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 	type Trader =
-		UsingComponents<WeightToFee, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>;
+		UsingComponents<WeightToFee, RelayLocation, AccountId, Balances, ()>;
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetLocker = ();

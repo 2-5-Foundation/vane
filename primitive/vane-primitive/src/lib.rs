@@ -6,6 +6,7 @@ use codec::{FullCodec, MaxEncodedLen};
 use codec::{Decode, Encode};
 use frame_support::dispatch::{RawOrigin};
 use frame_support::pallet_prelude::*;
+use frame_support::sp_runtime::traits::StaticLookup;
 use frame_support::traits::{ContainsPair, EnsureOriginWithArg, Everything, OriginTrait, UnfilteredDispatchable};
 use frame_support::traits::fungibles::{Balanced, Inspect};
 use frame_support::traits::tokens::{Fortitude, Precision, Preservation, WithdrawConsequence};
@@ -47,7 +48,7 @@ pub trait OrderTrait {
 //use orml_traits::{GetByKey, parameter_type_with_key};
 use pallet_assets::{AssetDetails, Config};
 use sp_core::serde::{Deserialize, Serialize};
-use sp_runtime::traits::{AtLeast32BitUnsigned, Convert, StaticLookup, Zero};
+use sp_runtime::traits::{AtLeast32BitUnsigned, Convert, Zero};
 use sp_runtime::SaturatedConversion;
 use staging_xcm_executor::Assets;
 use staging_xcm_executor::traits::{ConvertLocation, Error, MatchesFungible, TransactAsset};
@@ -256,8 +257,7 @@ for VaneMultiCurrencyAdapter<
 			let currency_id = CurrencyIdConvert::convert(asset.clone())
 				.ok_or_else(|| XcmError::from(Error::AssetIdConversionFailed))?;
 			let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
-				.ok_or_else(|| XcmError::from(Error::AssetNotHandled))?
-				.saturated_into();
+				.ok_or_else(|| XcmError::from(Error::AssetNotHandled))?;
 			MultiCurrency::withdraw(currency_id, &who, amount).map_err(|e| XcmError::FailedToTransactAsset(e.into()))
 		})?;
 
@@ -277,8 +277,7 @@ for VaneMultiCurrencyAdapter<
 		let currency_id = CurrencyIdConvert::convert(asset.clone())
 			.ok_or_else(|| XcmError::from(Error::AssetIdConversionFailed))?;
 		let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
-			.ok_or_else(|| XcmError::from(Error::AssetNotHandled))?
-			.saturated_into();
+			.ok_or_else(|| XcmError::from(Error::AssetNotHandled))?;
 		MultiCurrency::transfer(currency_id, &from_account, &to_account, amount)
 			.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
 
@@ -300,8 +299,8 @@ pub trait VaneMultiCurrency<AccountId> {
 	+ MaxEncodedLen;
 
 	/// The balance of an account.
-	type Balance: AtLeast32BitUnsigned
-	+ FullCodec
+	type Balance:
+	FullCodec
 	+ Copy
 	+ MaybeSerializeDeserialize
 	+ Debug
@@ -423,12 +422,12 @@ impl<T: pallet_assets::Config > VaneMultiCurrency<T::AccountId> for MultiCurrenc
 		}.dispatch_bypass_filter(oo).into()
 	}
 
-	fn deposit(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> sp_runtime::DispatchResult {
+	fn deposit(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> Result<(),DispatchError> {
 		let _ = <pallet_assets::Pallet<T>>::deposit(currency_id.into(), who, amount, Precision::Exact)?;
 		Ok(())
 	}
 
-	fn withdraw(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> sp_runtime::DispatchResult {
+	fn withdraw(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> Result<(),DispatchError> {
 		// Check the Fortitude
 		let _ = <pallet_assets::Pallet<T>>::withdraw(currency_id.into(), who, amount, Precision::Exact, Preservation::Expendable, Fortitude::Polite)?;
 		Ok(())
