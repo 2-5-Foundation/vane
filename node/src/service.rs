@@ -1,38 +1,40 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
+
+// You should have received a copy of the GNU General Public License
+// along with Tanssi.  If not, see <http://www.gnu.org/licenses/>.
+use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
+
 // std
 use std::{sync::Arc, time::Duration};
 
-use cumulus_client_cli::CollatorOptions;
+use {cumulus_client_cli::CollatorOptions, sc_network::config::FullNetworkConfiguration};
 // Local Runtime Types
-use vane_para_runtime::{opaque::Block, RuntimeApi};
+use vane_tanssi_runtime::{opaque::Block, RuntimeApi};
 
 // Cumulus Imports
-use cumulus_client_consensus_aura::{AuraConsensus, BuildAuraConsensusParams, SlotProportion};
-use cumulus_client_consensus_common::{
-	ParachainBlockImport as TParachainBlockImport, ParachainConsensus,
+#[allow(deprecated)]
+use {
+	cumulus_client_consensus_common::ParachainBlockImport as TParachainBlockImport,
+	cumulus_client_service::{
+		build_relay_chain_interface, prepare_node_config, start_full_node, CollatorSybilResistance,
+		StartFullNodeParams,
+	},
+	cumulus_primitives_core::ParaId,
+	cumulus_relay_chain_interface::RelayChainInterface,
 };
-use cumulus_client_service::{
-	build_network, build_relay_chain_interface, prepare_node_config, start_collator,
-	start_full_node, BuildNetworkParams, StartCollatorParams, StartFullNodeParams,
-};
-use cumulus_primitives_core::ParaId;
-use cumulus_relay_chain_interface::RelayChainInterface;
 
 // Substrate Imports
-use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
-use sc_client_api::Backend;
-use sc_consensus::ImportQueue;
-use sc_executor::{
-	HeapAllocStrategy, NativeElseWasmExecutor, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY,
+use {
+	futures::FutureExt,
+	sc_client_api::Backend,
+	sc_consensus::ImportQueue,
+	sc_executor::NativeElseWasmExecutor,
+	sc_network::NetworkBlock,
+	sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager},
+	sc_telemetry::{Telemetry, TelemetryWorker, TelemetryWorkerHandle},
+	sc_transaction_pool_api::OffchainTransactionPoolFactory,
 };
-use sc_network::NetworkBlock;
-use sc_network_sync::SyncingService;
-use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
-use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
-use sc_transaction_pool_api::OffchainTransactionPoolFactory;
-use sp_keystore::KeystorePtr;
-use substrate_prometheus_endpoint::Registry;
 
 /// Native executor type.
 pub struct ParachainNativeExecutor;
@@ -41,11 +43,11 @@ impl sc_executor::NativeExecutionDispatch for ParachainNativeExecutor {
 	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
 
 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		vane_para_runtime::api::dispatch(method, data)
+		vane_tanssi_runtime::api::dispatch(method, data)
 	}
 
 	fn native_version() -> sc_executor::NativeVersion {
-		vane_para_runtime::native_version()
+		vane_tanssi_runtime::native_version()
 	}
 }
 
@@ -68,9 +70,13 @@ pub fn new_partial(
 		ParachainClient,
 		ParachainBackend,
 		(),
-		sc_consensus::DefaultImportQueue<Block, ParachainClient>,
+		sc_consensus::DefaultImportQueue<Block>,
 		sc_transaction_pool::FullPool<Block, ParachainClient>,
-		(ParachainBlockImport, Option<Telemetry>, Option<TelemetryWorkerHandle>),
+		(
+			ParachainBlockImport,
+			Option<Telemetry>,
+			Option<TelemetryWorkerHandle>,
+		),
 	>,
 	sc_service::Error,
 > {
@@ -87,7 +93,9 @@ pub fn new_partial(
 
 	let heap_pages = config
 		.default_heap_pages
-		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static { extra_pages: h as _ });
+		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static {
+			extra_pages: h as _,
+		});
 
 	let wasm = WasmExecutor::builder()
 		.with_execution_method(config.wasm_method)
@@ -110,7 +118,9 @@ pub fn new_partial(
 	let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
-		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
+		task_manager
+			.spawn_handle()
+			.spawn("telemetry", None, worker.run());
 		telemetry
 	});
 
@@ -124,12 +134,17 @@ pub fn new_partial(
 
 	let block_import = ParachainBlockImport::new(client.clone(), backend.clone());
 
-	let import_queue = build_import_queue(
+	let import_queue = nimbus_consensus::import_queue(
 		client.clone(),
 		block_import.clone(),
-		config,
-		telemetry.as_ref().map(|telemetry| telemetry.handle()),
-		&task_manager,
+		move |_, _| async move {
+			let time = sp_timestamp::InherentDataProvider::from_system_time();
+
+			Ok((time,))
+		},
+		&task_manager.spawn_essential_handle(),
+		config.prometheus_registry(),
+		false,
 	)?;
 
 	Ok(PartialComponents {
@@ -158,14 +173,13 @@ async fn start_node_impl(
 	let parachain_config = prepare_node_config(parachain_config);
 
 	let params = new_partial(&parachain_config)?;
-	let (block_import, mut telemetry, telemetry_worker_handle) = params.other;
-	let net_config = sc_network::config::FullNetworkConfiguration::new(&parachain_config.network);
+	let (_block_import, mut telemetry, telemetry_worker_handle) = params.other;
 
 	let client = params.client.clone();
 	let backend = params.backend.clone();
 	let mut task_manager = params.task_manager;
 
-	let (relay_chain_interface, collator_key) = build_relay_chain_interface(
+	let (relay_chain_interface, _collator_key) = build_relay_chain_interface(
 		polkadot_config,
 		&parachain_config,
 		telemetry_worker_handle,
@@ -173,31 +187,28 @@ async fn start_node_impl(
 		collator_options.clone(),
 		hwbench.clone(),
 	)
-	.await
-	.map_err(|e| sc_service::Error::Application(Box::new(e) as Box<_>))?;
+		.await
+		.map_err(|e| sc_service::Error::Application(Box::new(e) as Box<_>))?;
 
-	let force_authoring = parachain_config.force_authoring;
-	let validator = parachain_config.role.is_authority();
-	let prometheus_registry = parachain_config.prometheus_registry().cloned();
 	let transaction_pool = params.transaction_pool.clone();
 	let import_queue_service = params.import_queue.service();
+	let net_config = FullNetworkConfiguration::new(&parachain_config.network);
 
 	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
-		build_network(BuildNetworkParams {
+		cumulus_client_service::build_network(cumulus_client_service::BuildNetworkParams {
 			parachain_config: &parachain_config,
-			net_config,
 			client: client.clone(),
 			transaction_pool: transaction_pool.clone(),
-			para_id,
 			spawn_handle: task_manager.spawn_handle(),
-			relay_chain_interface: relay_chain_interface.clone(),
 			import_queue: params.import_queue,
+			para_id,
+			relay_chain_interface: relay_chain_interface.clone(),
+			net_config,
+			sybil_resistance_level: CollatorSybilResistance::Resistant,
 		})
-		.await?;
+			.await?;
 
 	if parachain_config.offchain_worker.enabled {
-		use futures::FutureExt;
-
 		task_manager.spawn_handle().spawn(
 			"offchain-workers-runner",
 			"offchain-work",
@@ -213,8 +224,8 @@ async fn start_node_impl(
 				enable_http_requests: false,
 				custom_extensions: move |_| vec![],
 			})
-			.run(client.clone(), task_manager.spawn_handle())
-			.boxed(),
+				.run(client.clone(), task_manager.spawn_handle())
+				.boxed(),
 		);
 	}
 
@@ -241,33 +252,16 @@ async fn start_node_impl(
 		config: parachain_config,
 		keystore: params.keystore_container.keystore(),
 		backend,
-		network: network.clone(),
-		sync_service: sync_service.clone(),
+		network,
 		system_rpc_tx,
 		tx_handler_controller,
 		telemetry: telemetry.as_mut(),
+		sync_service: sync_service.clone(),
 	})?;
 
-	if let Some(hwbench) = hwbench {
-		sc_sysinfo::print_hwbench(&hwbench);
-		// Here you can check whether the hardware meets your chains' requirements. Putting a link
-		// in there and swapping out the requirements for your own are probably a good idea. The
-		// requirements for a para-chain are dictated by its relay-chain.
-		if !SUBSTRATE_REFERENCE_HARDWARE.check_hardware(&hwbench) && validator {
-			log::warn!(
-				"⚠️  The hardware does not meet the minimal requirements for role 'Authority'."
-			);
-		}
-
-		if let Some(ref mut telemetry) = telemetry {
-			let telemetry_handle = telemetry.handle();
-			task_manager.spawn_handle().spawn(
-				"telemetry_hwbench",
-				None,
-				sc_sysinfo::initialize_hwbench_telemetry(telemetry_handle, hwbench),
-			);
-		}
-	}
+	let overseer_handle = relay_chain_interface
+		.overseer_handle()
+		.map_err(|e| sc_service::Error::Application(Box::new(e)))?;
 
 	let announce_block = {
 		let sync_service = sync_service.clone();
@@ -276,169 +270,25 @@ async fn start_node_impl(
 
 	let relay_chain_slot_duration = Duration::from_secs(6);
 
-	let overseer_handle = relay_chain_interface
-		.overseer_handle()
-		.map_err(|e| sc_service::Error::Application(Box::new(e)))?;
+	let params = StartFullNodeParams {
+		client: client.clone(),
+		announce_block,
+		task_manager: &mut task_manager,
+		para_id,
+		relay_chain_interface,
+		relay_chain_slot_duration,
+		import_queue: import_queue_service,
+		recovery_handle: Box::new(overseer_handle),
+		sync_service,
+	};
 
-	if validator {
-		let parachain_consensus = build_consensus(
-			client.clone(),
-			block_import,
-			prometheus_registry.as_ref(),
-			telemetry.as_ref().map(|t| t.handle()),
-			&task_manager,
-			relay_chain_interface.clone(),
-			transaction_pool,
-			sync_service.clone(),
-			params.keystore_container.keystore(),
-			force_authoring,
-			para_id,
-		)?;
-
-		let spawner = task_manager.spawn_handle();
-		let params = StartCollatorParams {
-			para_id,
-			block_status: client.clone(),
-			announce_block,
-			client: client.clone(),
-			task_manager: &mut task_manager,
-			relay_chain_interface,
-			spawner,
-			parachain_consensus,
-			import_queue: import_queue_service,
-			collator_key: collator_key.expect("Command line arguments do not allow this. qed"),
-			relay_chain_slot_duration,
-			recovery_handle: Box::new(overseer_handle),
-			sync_service,
-		};
-
-		start_collator(params).await?;
-	} else {
-		let params = StartFullNodeParams {
-			client: client.clone(),
-			announce_block,
-			task_manager: &mut task_manager,
-			para_id,
-			relay_chain_interface,
-			relay_chain_slot_duration,
-			import_queue: import_queue_service,
-			recovery_handle: Box::new(overseer_handle),
-			sync_service,
-		};
-
-		start_full_node(params)?;
-	}
+	// TODO: change for async backing
+	#[allow(deprecated)]
+	start_full_node(params)?;
 
 	start_network.start_network();
 
 	Ok((task_manager, client))
-}
-
-/// Build the import queue for the parachain runtime.
-fn build_import_queue(
-	client: Arc<ParachainClient>,
-	block_import: ParachainBlockImport,
-	config: &Configuration,
-	telemetry: Option<TelemetryHandle>,
-	task_manager: &TaskManager,
-) -> Result<sc_consensus::DefaultImportQueue<Block, ParachainClient>, sc_service::Error> {
-	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
-
-	cumulus_client_consensus_aura::import_queue::<
-		sp_consensus_aura::sr25519::AuthorityPair,
-		_,
-		_,
-		_,
-		_,
-		_,
-	>(cumulus_client_consensus_aura::ImportQueueParams {
-		block_import,
-		client,
-		create_inherent_data_providers: move |_, _| async move {
-			let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
-
-			let slot =
-				sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
-					*timestamp,
-					slot_duration,
-				);
-
-			Ok((slot, timestamp))
-		},
-		registry: config.prometheus_registry(),
-		spawner: &task_manager.spawn_essential_handle(),
-		telemetry,
-	})
-	.map_err(Into::into)
-}
-
-fn build_consensus(
-	client: Arc<ParachainClient>,
-	block_import: ParachainBlockImport,
-	prometheus_registry: Option<&Registry>,
-	telemetry: Option<TelemetryHandle>,
-	task_manager: &TaskManager,
-	relay_chain_interface: Arc<dyn RelayChainInterface>,
-	transaction_pool: Arc<sc_transaction_pool::FullPool<Block, ParachainClient>>,
-	sync_oracle: Arc<SyncingService<Block>>,
-	keystore: KeystorePtr,
-	force_authoring: bool,
-	para_id: ParaId,
-) -> Result<Box<dyn ParachainConsensus<Block>>, sc_service::Error> {
-	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
-
-	let proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
-		task_manager.spawn_handle(),
-		client.clone(),
-		transaction_pool,
-		prometheus_registry,
-		telemetry.clone(),
-	);
-
-	let params = BuildAuraConsensusParams {
-		proposer_factory,
-		create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
-			let relay_chain_interface = relay_chain_interface.clone();
-			async move {
-				let parachain_inherent =
-					cumulus_primitives_parachain_inherent::ParachainInherentData::create_at(
-						relay_parent,
-						&relay_chain_interface,
-						&validation_data,
-						para_id,
-					)
-					.await;
-				let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
-
-				let slot =
-						sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
-							*timestamp,
-							slot_duration,
-						);
-
-				let parachain_inherent = parachain_inherent.ok_or_else(|| {
-					Box::<dyn std::error::Error + Send + Sync>::from(
-						"Failed to create parachain inherent",
-					)
-				})?;
-				Ok((slot, timestamp, parachain_inherent))
-			}
-		},
-		block_import,
-		para_client: client,
-		backoff_authoring_blocks: Option::<()>::None,
-		sync_oracle,
-		keystore,
-		force_authoring,
-		slot_duration,
-		// We got around 500ms for proposing
-		block_proposal_slot_portion: SlotProportion::new(1f32 / 24f32),
-		// And a maximum of 750ms if slots are skipped
-		max_block_proposal_slot_portion: Some(SlotProportion::new(1f32 / 16f32)),
-		telemetry,
-	};
-
-	Ok(AuraConsensus::build::<sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _>(params))
 }
 
 /// Start a parachain node.
@@ -449,5 +299,12 @@ pub async fn start_parachain_node(
 	para_id: ParaId,
 	hwbench: Option<sc_sysinfo::HwBench>,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
-	start_node_impl(parachain_config, polkadot_config, collator_options, para_id, hwbench).await
+	start_node_impl(
+		parachain_config,
+		polkadot_config,
+		collator_options,
+		para_id,
+		hwbench,
+	)
+		.await
 }

@@ -83,6 +83,10 @@ pub struct Cli {
 	/// Relay chain arguments
 	#[arg(raw = true)]
 	pub relay_chain_args: Vec<String>,
+
+	/// Optional parachain id that should be used to build chain spec.
+	#[arg(long)]
+	pub para_id: Option<u32>,
 }
 
 #[derive(Debug)]
