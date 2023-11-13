@@ -1,0 +1,776 @@
+commit 0dcdee63e80626e5f0eb85a71da6ff5125dbee6a
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Mon Nov 13 03:40:09 2023 +0300
+
+    done solved the dependency issue , refactoring remaining
+
+ tree.toml | 4132 -------------------------------------------------------------
+ 1 file changed, 4132 deletions(-)
+
+commit d813e8f195c3c6c62f2767e07f2a677ed3f2b07e
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Mon Nov 13 03:39:21 2023 +0300
+
+    done solved the dependency issue , refactoring remaining
+
+ Cargo.toml                                       |    4 +-
+ primitive/vane-primitive/Cargo.toml              |   21 +-
+ primitive/vane-primitive/src/lib.rs              |   17 +-
+ runtime/vane-container-runtime/Cargo.toml        |   84 +-
+ runtime/vane-container-runtime/src/lib.rs        | 1085 +++---
+ runtime/vane-container-runtime/src/xcm_config.rs |   24 +-
+ tree.toml                                        | 4132 ++++++++++++++++++++++
+ 7 files changed, 4707 insertions(+), 660 deletions(-)
+
+commit fe492712176fc4bea686f5f5c6b2b0bf3a1b3835
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Mon Nov 13 01:10:56 2023 +0300
+
+    about to change all the deps to point to tanssi
+
+ tree.toml | 4685 -------------------------------------------------------------
+ 1 file changed, 4685 deletions(-)
+
+commit ce04fbba3f85a07e981b0ce130d1edcab69d8e2d
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Mon Nov 13 01:10:41 2023 +0300
+
+    about to change all the deps to point to tanssi
+
+ Cargo.toml                                         |    9 +-
+ primitive/vane-primitive/Cargo.toml                |    8 +-
+ primitive/vane-primitive/src/lib.rs                |   79 +-
+ runtime/vane-container-runtime/Cargo.toml          |   58 +-
+ runtime/vane-container-runtime/build.rs            |    7 +-
+ runtime/vane-container-runtime/src/xcm_config.rs   |    2 +-
+ .../src/xcm_eml_testing/mod.rs                     |  577 ---
+ .../src/xcm_sim_testing/mod.rs                     |  916 ----
+ .../src/xcm_sim_testing/parachain.rs               |  477 --
+ .../src/xcm_sim_testing/relay_chain.rs             |  265 --
+ tree.toml                                          | 4685 ++++++++++++++++++++
+ 11 files changed, 4777 insertions(+), 2306 deletions(-)
+
+commit ac467d655d056b370232344c27f4334913e71874
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sun Nov 12 23:25:43 2023 +0300
+
+    intermediate solving of dependency for tanssi
+
+ Cargo.toml                                       |  3 +-
+ runtime/vane-container-runtime/Cargo.toml        |  7 ++--
+ runtime/vane-container-runtime/src/lib.rs        |  3 ++
+ runtime/vane-parachain-runtime/Cargo.toml        | 23 +++++++-----
+ runtime/vane-parachain-runtime/src/lib.rs        | 45 ++++++++++++------------
+ runtime/vane-parachain-runtime/src/xcm_config.rs | 12 +++----
+ 6 files changed, 51 insertions(+), 42 deletions(-)
+
+commit 8ec1093cf61d63fd356f0c57c752d36aa92d2ce7
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sat Nov 11 16:10:47 2023 +0300
+
+    not there yet with the sp-io issue
+
+ Cargo.toml                                |  2 +-
+ primitive/vane-primitive/Cargo.toml       | 11 ++++---
+ primitive/vane-primitive/src/lib.rs       |  2 --
+ runtime/vane-container-runtime/Cargo.toml | 53 ++++++++++++++++---------------
+ runtime/vane-container-runtime/build.rs   |  1 -
+ runtime/vane-container-runtime/src/lib.rs |  3 --
+ 6 files changed, 34 insertions(+), 38 deletions(-)
+
+commit 15d1bd2fd09ac0700e9f418bf1f3171fa5e3ebe3
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sat Nov 11 01:00:33 2023 +0300
+
+    progress on solving dependency issue
+
+ Cargo.toml                                       |  4 +-
+ pallets/vane-payment/Cargo.toml                  |  2 +-
+ pallets/vane-xcm/Cargo.toml                      |  2 +-
+ primitive/vane-primitive/Cargo.toml              | 35 ++++++-------
+ primitive/vane-primitive/src/lib.rs              | 12 ++---
+ runtime/vane-container-runtime/Cargo.toml        | 32 ++++++++----
+ runtime/vane-container-runtime/src/lib.rs        | 64 ++++++++++++------------
+ runtime/vane-container-runtime/src/xcm_config.rs | 12 ++---
+ runtime/vane-parachain-runtime/Cargo.toml        | 39 ++++++++-------
+ runtime/vane-parachain-runtime/src/lib.rs        | 23 ++++-----
+ 10 files changed, 120 insertions(+), 105 deletions(-)
+
+commit 7f9b3f655faffabdd0895bef0d2cc58bd1dc1f91
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Fri Nov 10 03:34:58 2023 +0300
+
+     still issues with wasm-opt-sys
+
+ runtime/vane-container-runtime/Cargo.toml |  41 ++++++-----
+ runtime/vane-parachain-runtime/Cargo.toml | 116 +++++++++++++++---------------
+ 2 files changed, 82 insertions(+), 75 deletions(-)
+
+commit cb9729dd6b0c0eb04ef03fdf7d71d192f5e98b8c
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Thu Nov 9 21:52:04 2023 +0300
+
+    release p1.1.0
+
+ Cargo.toml                                |   1 +
+ runtime/vane-container-runtime/Cargo.toml | 121 +++++++++++++++---------------
+ runtime/vane-container-runtime/src/lib.rs |   1 +
+ 3 files changed, 63 insertions(+), 60 deletions(-)
+
+commit 09691f0b8adc1cc8c7d7f3e01925d4a8f33af310
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Nov 8 23:42:52 2023 +0300
+
+    working on tanssi runtime config
+
+ Cargo.toml                                         |   1 +
+ ...ording 2023-10-15 at 6.32.05\342\200\257PM.mov" | Bin 969726477 -> 0 bytes
+ runtime/vane-container-runtime/Cargo.toml          |  21 +-
+ runtime/vane-container-runtime/src/lib.rs          | 211 +++------------------
+ runtime/vane-local-runtime/Cargo.toml              |   2 +-
+ 5 files changed, 41 insertions(+), 194 deletions(-)
+
+commit 80dd6c98e18bb2f5eca38de5b698cc44fba2fb94
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sun Oct 15 18:39:14 2023 +0300
+
+    artifacts
+
+ ...cording 2023-10-15 at 6.32.05\342\200\257PM.mov" | Bin 0 -> 969726477 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+
+commit 268cddd9c07cf835caf159c679e2b9af79ff72ea
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sun Oct 15 04:00:16 2023 +0300
+
+    artifacts
+
+ artifacts/VanePrimitivesChart.jpeg | Bin 0 -> 218743 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+
+commit e6d723b7f08130417e1ae4db913dd8c85f05a3e4
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sun Oct 15 03:33:40 2023 +0300
+
+    artifacts
+
+ artifacts/VaneChartAll.jpeg             | Bin 0 -> 179271 bytes
+ artifacts/VaneComponents for grant.jpeg | Bin 0 -> 154616 bytes
+ artifacts/VaneOverallArcitecture.jpeg   | Bin 0 -> 123917 bytes
+ 3 files changed, 0 insertions(+), 0 deletions(-)
+
+commit fcb62bead960d195cce0304fc650a56738cf82c5
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sun Oct 15 03:23:13 2023 +0300
+
+    artifacts
+
+ ...ansfer.jpeg => Vane-Overall-for-risk-free-transfer.jpeg} | Bin
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+
+commit 294a038ca1d062cc8ca07b316ff629985084d195
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sun Oct 15 03:20:47 2023 +0300
+
+    artifacts
+
+ artifacts/Vane Demo Pitch.key                      | Bin 0 -> 14939646 bytes
+ artifacts/Vane Overall for risk free transfer.jpeg | Bin 0 -> 178863 bytes
+ artifacts/Vane chart.pdf                           | Bin 0 -> 163286 bytes
+ pallets/vane-xcm/src/lib.rs                        |  31 ---------------------
+ primitive/vane-primitive/src/lib.rs                |   3 ++
+ .../src/xcm_eml_testing/mod.rs                     |   4 +--
+ .../src/xcm_sim_testing/mod.rs                     |   4 +--
+ zombienet/vane.toml                                |   2 ++
+ 8 files changed, 9 insertions(+), 35 deletions(-)
+
+commit 0ca7ad5b0e3ea9a75733b2e34b195020165b9a03
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Tue Oct 3 17:50:35 2023 +0100
+
+    POC
+
+ pallets/vane-payment/src/helper.rs |     4 +-
+ pallets/vane-xcm/Cargo.toml        |     2 +
+ pallets/vane-xcm/src/lib.rs        |     7 +-
+ tmp1/vane-state                    |     2 +-
+ tmp1/vane-wasm                     |     2 +-
+ zombienet/polkadot.json            | 11676 -----------------------------------
+ zombienet/rococo-new.json          |   227 -
+ zombienet/rococo-old.json          |   223 -
+ zombienet/rococo.json              |   197 -
+ zombienet/vane.toml                |     1 -
+ 10 files changed, 10 insertions(+), 12331 deletions(-)
+
+commit fba65fe30f22dfc358f0916e7b488b551433d884
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Mon Oct 2 17:44:56 2023 +0100
+
+     POC done
+
+ .../src/xcm_eml_testing/mod.rs                     |    13 +-
+ vane-state                                         |     1 +
+ vane-wasm                                          |     1 +
+ zombienet/polkadot.json                            | 11676 +++++++++++++++++++
+ zombienet/rococo-new.json                          |   227 +
+ zombienet/rococo-old.json                          |   223 +
+ zombienet/rococo.json                              |   396 +-
+ zombienet/vane.toml                                |     4 +-
+ 8 files changed, 12326 insertions(+), 215 deletions(-)
+
+commit aa9c749505f874b1aec0ec5797894d5106529d93
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sat Sep 30 01:37:48 2023 +0100
+
+    finished first version of vane risk free transfer
+
+ pallets/vane-xcm/src/helper.rs                     | 37 ++++++++----
+ pallets/vane-xcm/src/lib.rs                        | 10 +++-
+ .../src/xcm_eml_testing/mod.rs                     | 70 ++++++++++++++++++++--
+ 3 files changed, 99 insertions(+), 18 deletions(-)
+
+commit 4c654ccbec28c5e63018dc475e089a55780a777e
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Fri Sep 29 15:31:39 2023 +0100
+
+    zombienet config for easy running & please set up integration testing
+
+ Cargo.toml                                | 13 +----
+ node/Cargo.toml                           | 96 +++++++++++++++----------------
+ pallets/vane-xcm/Cargo.toml               |  4 +-
+ pallets/vane-xcm/src/lib.rs               |  1 +
+ primitive/vane-primitive/Cargo.toml       |  4 +-
+ runtime/vane-container-runtime/Cargo.toml | 50 +++++++++-------
+ runtime/vane-container-runtime/build.rs   |  5 ++
+ runtime/vane-container-runtime/src/lib.rs | 11 ++--
+ runtime/vane-local-runtime/Cargo.toml     | 28 ++++-----
+ runtime/vane-parachain-runtime/Cargo.toml | 30 +++++-----
+ tmp1/vane-state                           |  2 +-
+ tmp1/vane-wasm                            |  2 +-
+ zombienet/vane.toml                       | 47 ++++-----------
+ 13 files changed, 138 insertions(+), 155 deletions(-)
+
+commit 4634d6e331cdb096c634e8c2024a22d75bf8b11e
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Sep 27 23:20:02 2023 +0100
+
+    solved dependency issue
+
+ Cargo.toml | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+commit 4ba03bc6b66160736d6bed169dc562f413aa3be4
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Sep 27 21:46:43 2023 +0100
+
+    version errors downgrade to 0.43
+
+ runtime/vane-container-runtime/Cargo.toml | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+commit 2f292063464a5e3a65152d879745f5d0baae2f74
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Sep 27 14:48:26 2023 +0100
+
+     tanssi runtime pallets
+
+ runtime/vane-container-runtime/Cargo.toml          |  218 +++-
+ runtime/vane-container-runtime/build.rs            |    9 +
+ runtime/vane-container-runtime/src/currency.rs     |   11 +
+ runtime/vane-container-runtime/src/lib.rs          | 1047 +++++++++++++++++++-
+ .../src/weights/block_weights.rs                   |   53 +
+ .../src/weights/extrinsic_weights.rs               |   53 +
+ runtime/vane-container-runtime/src/weights/mod.rs  |   28 +
+ .../src/weights/paritydb_weights.rs                |   63 ++
+ .../src/weights/rocksdb_weights.rs                 |   63 ++
+ .../src/weights/vane_asset_weights.rs              |  528 ++++++++++
+ runtime/vane-container-runtime/src/xcm_config.rs   |  217 ++++
+ .../src/xcm_eml_testing/mod.rs                     |  577 +++++++++++
+ .../src/xcm_sim_testing/mod.rs                     |  916 +++++++++++++++++
+ .../src/xcm_sim_testing/parachain.rs               |  477 +++++++++
+ .../src/xcm_sim_testing/relay_chain.rs             |  265 +++++
+ runtime/vane-local-runtime/build.rs                |   13 -
+ 16 files changed, 4514 insertions(+), 24 deletions(-)
+
+commit 99819ac77d9d240477c189a45cb2cfa3078a7410
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Sep 27 02:09:33 2023 +0100
+
+     splitted up the runtimes
+
+ Cargo.toml                                         |   2 +-
+ node/Cargo.toml                                    |   6 +-
+ node/src/chain_spec.rs                             |  36 ++--
+ node/src/command.rs                                |   4 +-
+ node/src/rpc.rs                                    |   2 +-
+ node/src/service.rs                                |   8 +-
+ runtime/vane-container-runtime/Cargo.toml          |   8 +
+ runtime/vane-container-runtime/src/lib.rs          |  14 ++
+ runtime/{ => vane-local-runtime}/Cargo.toml        |  90 ++++-----
+ runtime/{ => vane-local-runtime}/build.rs          |   0
+ runtime/vane-local-runtime/src/lib.rs              |  14 ++
+ runtime/vane-parachain-runtime/Cargo.toml          | 221 +++++++++++++++++++++
+ runtime/vane-parachain-runtime/build.rs            |  13 ++
+ .../{ => vane-parachain-runtime}/src/currency.rs   |   0
+ runtime/{ => vane-parachain-runtime}/src/lib.rs    |   0
+ .../src/weights/block_weights.rs                   |   0
+ .../src/weights/extrinsic_weights.rs               |   0
+ .../src/weights/mod.rs                             |   0
+ .../src/weights/paritydb_weights.rs                |   0
+ .../src/weights/rocksdb_weights.rs                 |   0
+ .../src/weights/vane_asset_weights.rs              |   0
+ .../{ => vane-parachain-runtime}/src/xcm_config.rs |   0
+ .../src/xcm_eml_testing/mod.rs                     |   0
+ .../src/xcm_sim_testing/mod.rs                     |   0
+ .../src/xcm_sim_testing/parachain.rs               |   0
+ .../src/xcm_sim_testing/relay_chain.rs             |   0
+ 26 files changed, 344 insertions(+), 74 deletions(-)
+
+commit 6472bfdc6087acd4c865bc44866ebac5ca37ae89
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Sep 27 00:07:11 2023 +0100
+
+    pallet asset configured for XCM, but custom vane asset pallet must be implemented
+
+ node/src/chain_spec.rs                   |  24 +-
+ pallets/vane-xcm/Cargo.toml              |  14 +-
+ pallets/vane-xcm/src/helper.rs           |  19 +-
+ pallets/vane-xcm/src/lib.rs              |  15 +-
+ primitive/vane-primitive/Cargo.toml      |  25 ++
+ primitive/vane-primitive/src/lib.rs      | 407 ++++++++++++++++++++++++++++++-
+ runtime/Cargo.toml                       |   3 +
+ runtime/src/lib.rs                       |  70 +++++-
+ runtime/src/xcm_config.rs                |  52 ++--
+ runtime/src/xcm_eml_testing/mod.rs       | 220 +++++++++++++++--
+ runtime/src/xcm_sim_testing/mod.rs       | 245 +++++++++----------
+ runtime/src/xcm_sim_testing/parachain.rs |  38 ++-
+ 12 files changed, 922 insertions(+), 210 deletions(-)
+
+commit 9afc46a61a83319b2953eb67a5f930a104047609
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Tue Sep 12 15:38:07 2023 +0300
+
+     emulator testing setup complete
+
+ pallets/vane-xcm/src/lib.rs        |   1 +
+ runtime/Cargo.toml                 |   6 ++
+ runtime/src/xcm_eml_testing/mod.rs | 165 +++++++++++++++++++++++++++++++++++--
+ 3 files changed, 165 insertions(+), 7 deletions(-)
+
+commit ec64fc70042cb0b885357238a3d35e05c264a1de
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Mon Sep 11 20:22:04 2023 +0300
+
+    emulator testing
+
+ runtime/Cargo.toml                 |   5 +
+ runtime/src/lib.rs                 |   4 +-
+ runtime/src/xcm_config.rs          |  46 +++----
+ runtime/src/xcm_eml_testing/lib.rs |   0
+ runtime/src/xcm_eml_testing/mod.rs | 260 +++++++++++++++++++++++++++++++++++++
+ runtime/src/xcm_sim_testing/mod.rs |   2 +
+ tmp1/vane-state                    |   2 +-
+ tmp1/vane-wasm                     |   2 +-
+ tmp1/vane.json                     |  99 --------------
+ zombienet/rococo.json              | 223 +++++++++++++++++++++++++++++++
+ zombienet/vane.toml                |   4 +-
+ 11 files changed, 518 insertions(+), 129 deletions(-)
+
+commit dea699ae505fee487a4c87646571647051d37ffd
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sun Sep 3 16:30:05 2023 +0300
+
+    vane xcm part1 finished --remaining emulator testing
+
+ pallets/vane-xcm/src/helper.rs     |  23 ++++++--
+ pallets/vane-xcm/src/lib.rs        |  13 ++---
+ runtime/src/xcm_sim_testing/mod.rs | 105 ++++++++++++++++++++++++++-----------
+ 3 files changed, 97 insertions(+), 44 deletions(-)
+
+commit 9bbf15205a52069c42ff877f436ccb9043ab222f
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sun Sep 3 03:11:09 2023 +0300
+
+    vane xcm part1-1
+
+ pallets/vane-payment/Cargo.toml    |   2 +
+ pallets/vane-payment/src/helper.rs |  53 +++++++++++-------
+ pallets/vane-payment/src/lib.rs    |   3 +-
+ pallets/vane-xcm/src/helper.rs     |  44 +++++++++++----
+ pallets/vane-xcm/src/lib.rs        |  21 ++++---
+ runtime/src/xcm_sim_testing/mod.rs | 110 ++++++++++++++++++++++++++++++++++++-
+ 6 files changed, 191 insertions(+), 42 deletions(-)
+
+commit 95e733bf60caa510cb6d63f24011b77c47560ff0
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Fri Sep 1 23:34:59 2023 +0300
+
+     txn receipt updates
+
+ pallets/vane-payment/src/helper.rs  | 61 ++++++++++++++++++++++++++++---------
+ pallets/vane-payment/src/lib.rs     |  4 +--
+ pallets/vane-wallet-less/src/lib.rs |  4 +--
+ pallets/vane-xcm/src/helper.rs      | 10 +++---
+ pallets/vane-xcm/src/lib.rs         |  9 ++++--
+ runtime/src/xcm_sim_testing/mod.rs  | 15 +++------
+ 6 files changed, 65 insertions(+), 38 deletions(-)
+
+commit d31190044cbdaf8232154eeefdae3c939fc65c31
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Fri Sep 1 20:13:26 2023 +0300
+
+     txn receipt updates
+
+ pallets/vane-payment/src/helper.rs | 24 +++++++++-----
+ pallets/vane-payment/src/lib.rs    | 16 +++++-----
+ pallets/vane-xcm/src/helper.rs     | 64 +++++++++++++++++++++++++++++++++-----
+ 3 files changed, 83 insertions(+), 21 deletions(-)
+
+commit d49d8c6e20845e2ca6f2ff8510b95760f185f827
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Fri Sep 1 18:49:20 2023 +0300
+
+     Vane xcm node setup
+
+ node/Cargo.toml                    |   2 +
+ node/src/chain_spec.rs             | 161 ++++++++++++++++++++++++++++++++++---
+ pallets/vane-payment/src/helper.rs |  12 ++-
+ pallets/vane-xcm/src/helper.rs     |  63 ++-------------
+ runtime/src/xcm_sim_testing/mod.rs |   3 +
+ 5 files changed, 171 insertions(+), 70 deletions(-)
+
+commit 517ebf360af68f85b3faad640e0ba7b3df9adb22
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Fri Sep 1 16:52:27 2023 +0300
+
+     Vane xcm part 1
+
+ pallets/vane-payment/src/helper.rs |  2 +-
+ pallets/vane-xcm/Cargo.toml        |  6 ++-
+ pallets/vane-xcm/src/helper.rs     | 96 +++++++++++++++++++-------------------
+ pallets/vane-xcm/src/lib.rs        | 74 +++++++++++++++++++++++------
+ runtime/src/lib.rs                 | 38 ---------------
+ runtime/src/xcm_eml_testing/lib.rs |  0
+ runtime/src/xcm_sim_testing/mod.rs | 89 +++++++++++++++++++++++++++++++++--
+ 7 files changed, 199 insertions(+), 106 deletions(-)
+
+commit cec59847b20a375c32bb71b7b9a83b54f666b69d
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Aug 30 19:29:33 2023 +0300
+
+    vane ump messages works
+
+ runtime/src/xcm_sim_testing/mod.rs | 47 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)
+
+commit 1ff10186aa9cf8bb83fb85f686746ea52ddbab02
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Aug 30 18:36:06 2023 +0300
+
+    vane dmp messages works
+
+ runtime/src/xcm_sim_testing/mod.rs | 121 ++++++++++++++++++++++++++++---------
+ 1 file changed, 93 insertions(+), 28 deletions(-)
+
+commit 3e21c237a47dfb3a332912f368943fdf5fbb3fd7
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Aug 30 03:27:09 2023 +0300
+
+    vane xcm testing 1
+
+ pallets/vane-xcm/src/lib.rs        | 11 ++++++++--
+ runtime/src/xcm_sim_testing/mod.rs | 45 ++++++++++++++++++++++++++------------
+ 2 files changed, 40 insertions(+), 16 deletions(-)
+
+commit 181bfa475f5487ff82888adea8e525d217c7a720
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Aug 30 01:17:24 2023 +0300
+
+    vane xcm sucks
+
+ pallets/vane-xcm/src/lib.rs              |  36 ++++--
+ runtime/src/xcm_sim_testing/mod.rs       | 206 ++++++++++++++++++++++---------
+ runtime/src/xcm_sim_testing/parachain.rs |  28 +++--
+ 3 files changed, 186 insertions(+), 84 deletions(-)
+
+commit c6ac3a0f89a42b3fe4c5219a83f7bcd21466a924
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Tue Aug 29 03:32:56 2023 +0300
+
+    Asset reserve transfer
+
+ runtime/src/xcm_sim_testing/mod.rs | 48 ++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 46 insertions(+), 2 deletions(-)
+
+commit c480ab1eb6660afc751e82a70e6a4ef09a5cb76c
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Tue Aug 29 01:54:48 2023 +0300
+
+     Vane custom asset testing
+
+ runtime/src/xcm_sim_testing/mod.rs | 303 +++++++++++++++++++------------------
+ 1 file changed, 156 insertions(+), 147 deletions(-)
+
+commit f2af9d5cdca2420e0a36e77cb5478572141edc9c
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Mon Aug 28 17:16:45 2023 +0300
+
+    testing reserve transfer with custom asset id
+
+ runtime/src/xcm_sim_testing/mod.rs       | 37 +++++++++++++++---------
+ runtime/src/xcm_sim_testing/parachain.rs | 49 ++++++++++++++++++--------------
+ 2 files changed, 51 insertions(+), 35 deletions(-)
+
+commit dfc89465882623527525d3cd3364dda73845bd56
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Mon Aug 28 02:03:09 2023 +0300
+
+    vane asset xcm
+
+ runtime/src/lib.rs                 |  2 +-
+ runtime/src/xcm_sim_testing/mod.rs | 67 +++++++++++++++++++++++++++++++++++---
+ 2 files changed, 64 insertions(+), 5 deletions(-)
+
+commit 5760eff96784f6a6fccc689d8836059342359898
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sun Aug 27 23:36:44 2023 +0300
+
+    Vane asset setup
+
+ runtime/Cargo.toml                        |  10 +-
+ runtime/src/lib.rs                        | 141 ++++---
+ runtime/src/weights/vane_asset_weights.rs | 604 +++++++++++++++++++++++++-----
+ runtime/src/xcm_config.rs                 |  10 +-
+ runtime/src/xcm_sim_testing/mod.rs        | 150 ++++----
+ runtime/src/xcm_sim_testing/parachain.rs  |  69 ++--
+ {zombienet-config => zombienet}/vane.toml |   0
+ 7 files changed, 749 insertions(+), 235 deletions(-)
+
+commit fec2775e6335e5ef32849294865c1241d08ffe39
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sun Aug 27 14:56:21 2023 +0300
+
+    Vane xcm remote solution 1
+
+ runtime/Cargo.toml                 |   2 +
+ runtime/src/xcm_sim_testing/mod.rs | 156 ++++++++++++++++++++++++++++++-------
+ 2 files changed, 132 insertions(+), 26 deletions(-)
+
+commit 40983d2e8f3999ce3ee19a491e480b6aaf45d745
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Sat Aug 19 01:28:37 2023 +0300
+
+    testing xcm
+
+ runtime/src/xcm_sim_testing/mod.rs | 71 +++++++++++++++++++++++++++-----------
+ 1 file changed, 51 insertions(+), 20 deletions(-)
+
+commit c5e19c954a2da8ff88b719214348272207efddec
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Fri Aug 18 01:38:02 2023 +0300
+
+     testing xcm is crazy tricky
+
+ runtime/src/xcm_sim_testing/mod.rs | 87 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 87 insertions(+)
+
+commit ca90797cb5a68ee3031448d33590204e255c11ed
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Thu Aug 17 02:49:58 2023 +0300
+
+    tests v1.0.0
+
+ runtime/src/lib.rs                         |  4 +-
+ runtime/src/xcm_sim_testing/mod.rs         | 23 +++++++----
+ runtime/src/xcm_sim_testing/parachain.rs   | 63 +++++++++++++++++++-----------
+ runtime/src/xcm_sim_testing/relay_chain.rs | 42 ++++++++++++--------
+ 4 files changed, 84 insertions(+), 48 deletions(-)
+
+commit 81e8257662dd8add84f348ba5b638b1eb16531d8
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Thu Aug 17 02:06:16 2023 +0300
+
+    v1.0.0
+
+ node/Cargo.toml                                    |  99 ++---
+ node/src/chain_spec.rs                             |   9 +-
+ node/src/cli.rs                                    |  15 +-
+ node/src/command.rs                                | 117 +++---
+ node/src/rpc.rs                                    |   2 +-
+ node/src/service.rs                                |  32 +-
+ pallets/vane-order/Cargo.toml                      |  18 +-
+ pallets/vane-order/src/helper.rs                   |   8 +-
+ pallets/vane-payment/Cargo.toml                    |  20 +-
+ pallets/vane-payment/src/helper.rs                 |   6 +-
+ pallets/vane-payment/src/lib.rs                    |  14 +-
+ pallets/vane-register/Cargo.toml                   |  20 +-
+ pallets/vane-register/src/helper.rs                |  11 +-
+ pallets/vane-register/src/lib.rs                   |   4 +-
+ pallets/vane-wallet-less/Cargo.toml                |  22 +-
+ pallets/vane-xcm/Cargo.toml                        |  32 +-
+ pallets/vane-xcm/src/lib.rs                        |  12 +-
+ primitive/vane-primitive/Cargo.toml                |  12 +-
+ runtime/Cargo.toml                                 | 119 +++---
+ runtime/src/lib.rs                                 | 200 +++++-----
+ runtime/src/weights/vane_asset_weights.rs          |  85 +++--
+ runtime/src/xcm_config.rs                          | 134 ++-----
+ runtime/src/xcm_sim_testing/mod.rs                 | 102 +++++
+ runtime/src/xcm_sim_testing/parachain.rs           | 412 +++++++++++++++++++++
+ .../xcm_sim_testing/relay_chain.rs}                |  34 +-
+ runtime/xcm-testing/emulator-tests.rs              |   0
+ runtime/xcm-testing/parachain.rs                   | 175 ---------
+ runtime/xcm-testing/sim-tests.rs                   |   0
+ 28 files changed, 986 insertions(+), 728 deletions(-)
+
+commit 227a53f94b314a219404e8791d95b2e136adb910
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Aug 16 20:14:49 2023 +0300
+
+    mock env for sim tests
+
+ .gitignore                                         |   4 +-
+ pallets/vane-xcm/src/lib.rs                        |   3 +
+ runtime/Cargo.toml                                 |   4 +
+ .../xcm-testing/emulator-tests.rs                  |   0
+ runtime/xcm-testing/parachain.rs                   | 175 +++++++++++++
+ runtime/xcm-testing/relay-chain.rs                 | 283 +++++++++++++++++++++
+ runtime/xcm-testing/sim-tests.rs                   |   0
+ tmp1/vane-zombie/alice.yaml                        |  40 ---
+ tmp1/vane-zombie/alice/cfg/polkadot.json           | 138 ----------
+ tmp1/vane-zombie/alice/cfg/zombie-wrapper.sh       | 107 --------
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 -
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 -
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 -
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 -
+ ...a1782d5e04779689068c916b04cb365ec3153755684d9a1 |   1 -
+ ...4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee |   1 -
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 -
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 -
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 -
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 -
+ ...4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee |   1 -
+ tmp1/vane-zombie/bob.yaml                          |  41 ---
+ tmp1/vane-zombie/bob/cfg/polkadot.json             | 140 ----------
+ tmp1/vane-zombie/bob/cfg/zombie-wrapper.sh         | 107 --------
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 -
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 -
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 -
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 -
+ ...26a4f13f0ccd982cb755a661969143c37cbc49ef5b91f27 |   1 -
+ ...d138f2d7e27d114c0145d968b5ff5006125f2414fadae69 |   1 -
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 -
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 -
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 -
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 -
+ ...d138f2d7e27d114c0145d968b5ff5006125f2414fadae69 |   1 -
+ tmp1/vane-zombie/namespace                         |   7 -
+ tmp1/vane-zombie/polkadot-plain.json               | 139 ----------
+ tmp1/vane-zombie/polkadot.json                     | 140 ----------
+ tmp1/vane-zombie/zombie-wrapper.sh                 | 107 --------
+ tmp1/vane-zombie/zombie.json                       |   1 -
+ zombienet-config/vane.toml                         |  40 +--
+ 41 files changed, 487 insertions(+), 1011 deletions(-)
+
+commit 0553b22c134770eeb2238a9bbdc549fc489563bf
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Aug 16 00:40:17 2023 +0300
+
+    zombie
+
+ zombienet-config/vane.toml | 40 ++++++++++++++++++++--------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)
+
+commit 279b25580c85007a314c918a84316a3b2566f350
+Author: MrishoLukamba <abdulrazzaqlukamba@gmail.com>
+Date:   Wed Aug 16 00:26:20 2023 +0300
+
+    Not actual first commit
+
+ .dockerignore                                      |   9 +
+ .editorconfig                                      |  29 +
+ .github/workflows/test-and-lint.yml                |  64 ++
+ .gitignore                                         |  25 +
+ .rustfmt.toml                                      |  23 +
+ Cargo.toml                                         |   9 +
+ Dockerfile                                         |   0
+ LICENSE                                            |  24 +
+ README.md                                          |  45 +
+ docs/rust-setup.md                                 |  31 +
+ docs/zombienet.md                                  |  49 ++
+ node/Cargo.toml                                    |  90 ++
+ node/build.rs                                      |   7 +
+ node/src/chain_spec.rs                             | 224 +++++
+ node/src/cli.rs                                    | 112 +++
+ node/src/command.rs                                | 458 ++++++++++
+ node/src/main.rs                                   |  14 +
+ node/src/rpc.rs                                    |  58 ++
+ node/src/service.rs                                | 437 +++++++++
+ pallets/vane-order/Cargo.toml                      |  48 +
+ pallets/vane-order/src/helper.rs                   |  65 ++
+ pallets/vane-order/src/lib.rs                      | 112 +++
+ pallets/vane-payment/Cargo.toml                    |  44 +
+ pallets/vane-payment/src/helper.rs                 | 410 +++++++++
+ pallets/vane-payment/src/lib.rs                    | 475 ++++++++++
+ pallets/vane-register/Cargo.toml                   |  42 +
+ pallets/vane-register/src/helper.rs                | 113 +++
+ pallets/vane-register/src/lib.rs                   | 156 ++++
+ pallets/vane-wallet-less/Cargo.toml                |  41 +
+ pallets/vane-wallet-less/src/lib.rs                | 206 +++++
+ pallets/vane-wallet-less/src/ocw.rs                |  24 +
+ pallets/vane-xcm/Cargo.toml                        |  57 ++
+ pallets/vane-xcm/src/helper.rs                     | 176 ++++
+ pallets/vane-xcm/src/lib.rs                        | 212 +++++
+ polkadot-launch/vaneconfig.json                    |  39 +
+ primitive/vane-primitive/Cargo.toml                |  33 +
+ primitive/vane-primitive/src/lib.rs                |  17 +
+ runtime/Cargo.toml                                 | 194 ++++
+ runtime/build.rs                                   |  13 +
+ runtime/src/currency.rs                            |  11 +
+ runtime/src/lib.rs                                 | 976 +++++++++++++++++++++
+ runtime/src/weights/block_weights.rs               |  53 ++
+ runtime/src/weights/extrinsic_weights.rs           |  53 ++
+ runtime/src/weights/mod.rs                         |  28 +
+ runtime/src/weights/paritydb_weights.rs            |  63 ++
+ runtime/src/weights/rocksdb_weights.rs             |  63 ++
+ runtime/src/weights/vane_asset_weights.rs          | 109 +++
+ runtime/src/xcm_config.rs                          | 261 ++++++
+ scripts/docker-compose.yml                         |   0
+ tmp1/vane-state                                    |   1 +
+ tmp1/vane-wasm                                     |   1 +
+ tmp1/vane-zombie/alice.yaml                        |  40 +
+ tmp1/vane-zombie/alice/cfg/polkadot.json           | 138 +++
+ tmp1/vane-zombie/alice/cfg/zombie-wrapper.sh       | 107 +++
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 +
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 +
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 +
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 +
+ ...a1782d5e04779689068c916b04cb365ec3153755684d9a1 |   1 +
+ ...4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee |   1 +
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 +
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 +
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 +
+ ...1141abd04a99fd6822c8558854ccde39a5684e7a56da27d |   1 +
+ ...4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee |   1 +
+ tmp1/vane-zombie/bob.yaml                          |  41 +
+ tmp1/vane-zombie/bob/cfg/polkadot.json             | 140 +++
+ tmp1/vane-zombie/bob/cfg/zombie-wrapper.sh         | 107 +++
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 +
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 +
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 +
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 +
+ ...26a4f13f0ccd982cb755a661969143c37cbc49ef5b91f27 |   1 +
+ ...d138f2d7e27d114c0145d968b5ff5006125f2414fadae69 |   1 +
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 +
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 +
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 +
+ ...6c9fea17e25fc5287613693c912909cb226aa4794f26a48 |   1 +
+ ...d138f2d7e27d114c0145d968b5ff5006125f2414fadae69 |   1 +
+ tmp1/vane-zombie/finished.txt                      |   0
+ tmp1/vane-zombie/namespace                         |   7 +
+ tmp1/vane-zombie/polkadot-plain.json               | 139 +++
+ tmp1/vane-zombie/polkadot.json                     | 140 +++
+ tmp1/vane-zombie/zombie-wrapper.sh                 | 107 +++
+ tmp1/vane-zombie/zombie.json                       |   1 +
+ tmp1/vane.json                                     |  99 +++
+ zombienet-config/vane.toml                         |  52 ++
+ 87 files changed, 6944 insertions(+)
