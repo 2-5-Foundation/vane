@@ -198,8 +198,8 @@ impl_opaque_keys! {
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("container-chain-template"),
-	impl_name: create_runtime_str!("container-chain-template"),
+	spec_name: create_runtime_str!("vane-network"),
+	impl_name: create_runtime_str!("vane-network"),
 	authoring_version: 1,
 	spec_version: 400,
 	impl_version: 0,

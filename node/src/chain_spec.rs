@@ -182,10 +182,10 @@ pub fn local_testnet_config(para_id: ParaId, boot_nodes: Vec<String>) -> ChainSp
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), "UNIT".into());
-	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenDecimals".into(), 5.into());
 	properties.insert("ss58Format".into(), 42.into());
 	properties.insert("isEthereum".into(), false.into());
-	let protocol_id = Some(format!("container-chain-{}", para_id));
+	let protocol_id = Some(format!("vane-network-{}", para_id));
 
 	let mut default_funded_accounts = pre_funded_accounts();
 	default_funded_accounts.sort();
@@ -200,9 +200,9 @@ pub fn local_testnet_config(para_id: ParaId, boot_nodes: Vec<String>) -> ChainSp
 
 	ChainSpec::from_genesis(
 		// Name
-		&format!("Simple Container {}", para_id),
+		&format!("vane-network_{}", para_id),
 		// ID
-		&format!("simple_container_{}", para_id),
+		&format!("vane-network_{}", para_id),
 		ChainType::Local,
 		move || {
 			testnet_genesis(
