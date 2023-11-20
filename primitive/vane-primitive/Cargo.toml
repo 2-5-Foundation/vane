@@ -13,18 +13,18 @@ codec = { package = "parity-scale-codec", version = "3.2.2", default-features = 
 	"derive",
 ] }
 
-scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+scale-info 											= { workspace = true }
 #frame-benchmarking = { version = "4.0.0-dev", default-features = false, optional = true, git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
-frame-support = { git = "https://github.com/moondance-labs/polkadot-sdk", default-features = false, branch = "tanssi-polkadot-v1.1.0" }
-frame-system = {  git = "https://github.com/moondance-labs/polkadot-sdk",default-features = false, branch = "tanssi-polkadot-v1.1.0" }
-sp-std = { git = "https://github.com/moondance-labs/polkadot-sdk", default-features = false, branch = "tanssi-polkadot-v1.1.0" }
-pallet-assets = { git = "https://github.com/moondance-labs/polkadot-sdk", default-features = false, branch = "tanssi-polkadot-v1.1.0" }
-pallet-xcm = { git = "https://github.com/moondance-labs/polkadot-sdk", default-features = false, branch = "tanssi-polkadot-v1.1.0" }
-staging-xcm = { git = "https://github.com/moondance-labs/polkadot-sdk", default-features = false, branch = "tanssi-polkadot-v1.1.0" }
-sp-runtime = { git = "https://github.com/moondance-labs/polkadot-sdk", default-features = false, branch = "tanssi-polkadot-v1.1.0" }
-sp-core = { git = "https://github.com/moondance-labs/polkadot-sdk",default-features = false, branch = "tanssi-polkadot-v1.1.0" }
-staging-xcm-executor = { git = "https://github.com/moondance-labs/polkadot-sdk", default-features = false, branch = "tanssi-polkadot-v1.1.0" }
-serde = { version = "1.0.163", default-features = false, features = ["alloc", "derive"] }
+frame-support										= { workspace = true }
+frame-system 										= { workspace = true}
+sp-std 												= { workspace = true }
+pallet-assets 										= { workspace = true }
+pallet-xcm 											= { workspace = true }
+staging-xcm 										= { workspace = true }
+sp-runtime 											= { workspace = true }
+sp-core 											= { workspace = true}
+staging-xcm-executor		 						= { workspace = true }
+serde 												= { workspace = true }
 
 
 # ORML
