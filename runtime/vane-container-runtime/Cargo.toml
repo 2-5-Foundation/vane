@@ -30,7 +30,7 @@ smallvec 											= { workspace = true}
 #vane-register = { version = "1.0.0-dev", default-features = false, path = "../../pallets/vane-register" }
 #vane-order = { version = "1.0.0-dev", default-features =  false, path = "../../pallets/vane-order" }
 #vane-payment = { version = "1.0.0-dev", default-features = false, path = "../../pallets/vane-payment"}
-#vane-xcm = {version = "1.0.0-dev", default-features = false,  path ="../../pallets/vane-xcm"}
+vane-xcm-transfer-system = {version = "1.0.0-dev", default-features = false,  path ="../../pallets/vane-xcm-transfer-system"}
 vane-primitive = { version = "1.0.0-dev", default-features = false, path ="../../primitive/vane-primitive"}
 
 # ORML
@@ -132,7 +132,7 @@ std = [
 #	"vane-register/std",
 #	"vane-order/std",
 #	"vane-payment/std",
-#	"vane-xcm/std",
+	"vane-xcm-transfer-system/std",
 	"vane-primitive/std",
 
 	# ORML

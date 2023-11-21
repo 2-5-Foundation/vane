@@ -4,42 +4,91 @@
 pub use pallet::*;
 pub mod helper;
 
-// pub use orml_tokens;
-// pub use orml_xtokens;
-pub use orml_traits;
-pub use orml_xcm_support;
+use log;
+use frame_support::Blake2_128;
+use frame_support::pallet_prelude::*;
+use frame_system::pallet_prelude::*;
+use pallet_xcm;
+use sp_runtime::traits::{StaticLookup};
+//use vane_primitive::CurrencyId;
+use sp_std::vec::Vec;
+use frame_support::parameter_types;
 
 
 #[frame_support::pallet]
 mod pallet{
-	use xcm::prelude::{GeneralIndex, PalletInstance,MultiLocation, X2};
-	use log;
-	use frame_support::Blake2_128;
-	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::*;
-	use pallet_xcm;
-	use vane_payment;
-	use sp_runtime::traits::{StaticLookup};
-	use frame_support::dispatch::RawOrigin;
-	//use vane_primitive::CurrencyId;
 
-	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::*;
-	use vane_payment::helper::Token;
-	use vane_payment::{Confirm, ConfirmedSigners, TxnReceipt};
-	use sp_std::vec::Vec;
+	use super::helper::{TxnReceipt,CallExecuted,AccountSigners,Token,Confirm};
+	use super::*;
+
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_xcm::Config + vane_payment::Config + pallet_assets::Config {
+	pub trait Config: frame_system::Config + pallet_xcm::Config + pallet_assets::Config {
 
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 	}
 
 	pub type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
+	// Max signers for Confirm Signers Bounded Vec
+	parameter_types! {
+		pub const MaxSigners: u16 = 2;
+	}
+
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
+	// Number of multi-sig transactions done by a specific account_id
+	#[pallet::storage]
+	#[pallet::unbounded]
+	#[pallet::getter(fn get_account_multitxns)]
+	pub type AccountMultiTxns<T: Config> =
+	StorageMap<_, Blake2_256, T::AccountId, Vec<CallExecuted<T>>, ValueQuery>;
+
+	// Signers which will be stored when payer initiates the transaction,
+	//This will be used to create a multi_id account which is shared with both payer and specified payee
+	#[pallet::storage]
+	#[pallet::unbounded]
+	#[pallet::getter(fn get_allowed_signers)]
+	pub type AllowedSigners<T: Config> =
+	StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, Vec<u8>, AccountSigners<T>>;
+
+
+	#[pallet::storage]
+	#[pallet::unbounded]
+	#[pallet::getter(fn get_signers)]
+
+	// Signers who have confirmed the transaction which will be compared to allowed signers as verification process
+	pub type ConfirmedSigners<T: Config> =
+	StorageMap<_, Twox64Concat, Vec<u8>, BoundedVec<T::AccountId, MaxSigners>, ValueQuery>;
+
+	// Number of reverted or faulty transaction a payer did
+	#[pallet::storage]
+	#[pallet::getter(fn get_failed_txn_payer)]
+	pub type RevertedTxnPayer<T: Config> = StorageMap<_, Blake2_256, T::AccountId, u32, ValueQuery>;
+
+	// Number of reverted or faulty transaction a payee did
+	#[pallet::storage]
+	#[pallet::getter(fn get_failed_txn_payee)]
+	pub type RevertedTxnPayee<T: Config> = StorageMap<_, Blake2_256, T::AccountId, u32, ValueQuery>;
+
+
+	#[pallet::storage]
+	pub type PayerTxnReceipt<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		T::AccountId,
+		TxnReceipt<T>
+	>;
+
+	// TxnTicket Payee
+	// This is used to notify the payee as their is new pending transaction which needs confirmation
+	#[pallet::storage]
+	#[pallet::unbounded]
+	pub type PayeeTxnReceipt<T: Config> =
+	StorageMap<_, Blake2_128Concat, T::AccountId, Vec<TxnReceipt<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	pub type MultiSigToPayee<T: Config> = StorageMap<_,Blake2_128,T::AccountId,T::AccountId>;
@@ -69,11 +118,38 @@ mod pallet{
 	#[pallet::error]
 	pub enum Error<T>{
 		NotEnoughFees,
+
 		UnexpectedError,
+
 		NotSupportedYet,
+
 		NotTheCaller,
+
 		ErrorSendingXcm,
-		ReceiptNotFound
+
+		ReceiptNotFound,
+
+		FailedToMatchAccounts,
+
+		MultiAccountExists,
+
+		ExceededSigners,
+
+		AccountAlreadyExist,
+
+		WaitForPayeeToConfirm,
+
+		WaitForPayerToConfirm,
+
+		PayerAlreadyConfirmed,
+
+		PayeeAlreadyConfirmed,
+
+		NotAllowedPayeeOrPaymentNotInitialized,
+
+		MultiSigCallFailed,
+
+		TxnReceiptUnavailable,
 	}
 
 	#[pallet::event]
@@ -173,14 +249,14 @@ mod pallet{
 
 			if let Some(addr) = b_vec.get(0) {
 				if addr.eq(&user_account) {
-					return Err(vane_payment::Error::<T>::PayeeAlreadyConfirmed.into());
+					return Err(Error::<T>::PayeeAlreadyConfirmed.into());
 
 				// Else for checking if payee tries to confirm twice.
 				} else {
 					ConfirmedSigners::<T>::try_mutate(reference_no.clone(), |vec| {
 						vec.try_push(user_account.clone())
 					})
-					.map_err(|_| vane_payment::Error::<T>::ExceededSigners)?;
+					.map_err(|_| Error::<T>::ExceededSigners)?;
 
 					let time = <frame_system::Pallet<T>>::block_number();
 
@@ -192,39 +268,37 @@ mod pallet{
 
 					// Construct AccountSigner object from ConfirmedSigners storage
 
-					let confirmed_acc_signers = vane_payment::AccountSigners::<T>::new(
+					let confirmed_acc_signers = AccountSigners::<T>::new(
 						ConfirmedSigners::<T>::get(reference_no.clone())
 							.get(0)
 							.ok_or(Error::<T>::UnexpectedError)?
 							.clone(),
-						vane_payment::ConfirmedSigners::<T>::get(reference_no.clone())
+						ConfirmedSigners::<T>::get(reference_no.clone())
 							.get(1)
 							.ok_or(Error::<T>::UnexpectedError)?
 							.clone(),
-						// The default resolver is none but logic will be made to be customizable
-						None,
 					);
 
 					// Derive the multi_id of newly constructed AccountSigner and one from
 					// AllowedSigners
-					let confirmed_multi_id = vane_payment::Pallet::<T>::derive_multi_id(confirmed_acc_signers);
+					let confirmed_multi_id = Self::derive_multi_id(confirmed_acc_signers);
 
 					// Get the AllowedSigners from storage
-					let payer = vane_payment::ConfirmedSigners::<T>::get(reference_no.clone())
+					let payer = ConfirmedSigners::<T>::get(reference_no.clone())
 						.get(1)
 						.ok_or(Error::<T>::UnexpectedError)?
 						.clone();
 
-					let payee = vane_payment::ConfirmedSigners::<T>::get(reference_no.clone())
+					let payee = ConfirmedSigners::<T>::get(reference_no.clone())
 						.get(0)
-						.ok_or(vane_payment::Error::<T>::UnexpectedError)?
+						.ok_or(Error::<T>::UnexpectedError)?
 						.clone();
 
 					let allowed_signers =
-						vane_payment::AllowedSigners::<T>::get(payer.clone(), reference_no.clone())
-							.ok_or(vane_payment::Error::<T>::NotAllowedPayeeOrPaymentNotInitialized)?;
+						AllowedSigners::<T>::get(payer.clone(), reference_no.clone())
+							.ok_or(Error::<T>::NotAllowedPayeeOrPaymentNotInitialized)?;
 
-					let allowed_multi_id = vane_payment::Pallet::<T>::derive_multi_id(allowed_signers);
+					let allowed_multi_id = Self::derive_multi_id(allowed_signers);
 					// Compute the hash of both multi_ids (proof)
 					if confirmed_multi_id.eq(&allowed_multi_id) {
 						// Dispatch xcm call
@@ -234,20 +308,20 @@ mod pallet{
 						Self::vane_xcm_confirm_transfer_dot(payer,payee,multi_id_multi_acc,amount,asset_id)?
 
 					} else {
-						return Err(vane_payment::Error::<T>::FailedToMatchAccounts.into());
+						return Err(Error::<T>::FailedToMatchAccounts.into());
 					}
 				}
 
 			// Else block from If let Some()
 			} else {
 				match who {
-					Confirm::Payer => return Err(vane_payment::Error::<T>::WaitForPayeeToConfirm.into()),
+					Confirm::Payer => return Err(Error::<T>::WaitForPayeeToConfirm.into()),
 
 					Confirm::Payee => {
 						ConfirmedSigners::<T>::try_mutate(reference_no.clone(), |vec| {
 							vec.try_push(user_account.clone())
 						})
-						.map_err(|_| vane_payment::Error::<T>::ExceededSigners)?;
+						.map_err(|_| Error::<T>::ExceededSigners)?;
 
 						let time = <frame_system::Pallet<T>>::block_number();
 
@@ -271,7 +345,7 @@ mod pallet{
 
 		pub fn read_payer_receipt(origin: OriginFor<T>,payee: T:: AccountId) -> Result<TxnReceipt<T>, DispatchError>{
 			let payer = ensure_signed(origin)?;
-			let receipt = vane_payment::PayerTxnReceipt::<T>::get(payer,payee).ok_or(Error::<T>::ReceiptNotFound)?;
+			let receipt = PayerTxnReceipt::<T>::get(payer,payee).ok_or(Error::<T>::ReceiptNotFound)?;
 			Ok(receipt)
 		}
 

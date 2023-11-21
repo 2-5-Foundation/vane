@@ -9,33 +9,153 @@ use pallet_assets;
 
 pub mod utils {
 	use core::ops::Add;
+	use frame_support::parameter_types;
 	use sp_std::ops::{Mul, Sub};
-	use frame_support::traits::UnfilteredDispatchable;
-	use frame_system::RawOrigin;
-    use sp_runtime::{MultiAddress, traits::StaticLookup};
-	use sp_runtime::DispatchError::BadOrigin;
-	use sp_runtime::traits::Scale;
-	use vane_payment::helper::Token;
-    use xcm::{
+	use frame_system::{AccountInfo, RawOrigin};
+	use sp_runtime::traits::{TrailingZeroInput};
+    use staging_xcm::{
         v3::{
-            MultiLocation,Junctions,Junction,
-            MultiAssetFilter, WildMultiAsset,
-            AssetId,Fungibility ,Xcm, WeightLimit,
-            Instruction, MultiAsset, MultiAssets
+            Xcm, WeightLimit,
         },
-        VersionedXcm
+
     };
     use sp_std::{vec::Vec,vec};
-    use sp_std::boxed::Box;
-	use xcm::latest::Parent;
-	use xcm::prelude::{AccountId32, All, BuyExecution, DepositAsset, GeneralIndex, Here, PalletInstance, TransferAsset, WithdrawAsset, X2};
+	use staging_xcm::latest::Parent;
+	use staging_xcm::prelude::{AccountId32, All, BuyExecution, DepositAsset, Here, WithdrawAsset};
+	use sp_io::hashing::blake2_256;
+
 
 	use super::*;
 
 
 
+	#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+	pub struct AccountSigners<T: Config> {
+		payee: T::AccountId,
+		payer: T::AccountId,
+	}
+	impl<T> AccountSigners<T>
+		where
+			T: Config,
+	{
+		pub fn new(
+			payee: T::AccountId,
+			payer: T::AccountId,
+		) -> Self {
+			AccountSigners { payee, payer }
+		}
+		pub(super) fn get_accounts(&self) -> (&T::AccountId, &T::AccountId) {
+			(&self.payer,&self.payee)
+		}
 
-    impl<T: Config> Pallet<T>{
+		// refer here https://doc.rust-lang.org/stable/book/ch06-01-defining-an-enum.html?highlight=enum#enum-values
+
+	}
+
+	#[derive(Encode, Decode, Clone, PartialEq, Eq,MaxEncodedLen, RuntimeDebug, TypeInfo)]
+	pub enum Token {
+		DOT,
+		USDT
+	}
+
+	#[derive(Encode, Decode, Clone, PartialEq, Eq,MaxEncodedLen, RuntimeDebug, TypeInfo)]
+	pub enum XcmStatus {
+		Sent,
+		Completed,
+		Tbc
+	}
+
+	// Confirmation enum which will be used to confirm the account_ids before dispatching multi-sig
+	// Call
+	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	pub enum Confirm {
+		Payer,
+		Payee,
+	}
+
+	parameter_types! {
+		pub const MAX_BYTES: u8 = 50;
+		pub const MAX_NO_TXNS: u8 = 20;
+	}
+
+	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug,MaxEncodedLen, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+
+	pub struct TxnReceipt<T: Config> {
+		payee: T::AccountId,
+		payer: T::AccountId,
+		pub multi_id: T::AccountId,
+		pub amount: u128,
+		pub reference_no: BoundedVec<u8,MAX_BYTES>,
+		currency: Option<Token>,
+		no_txn: BoundedVec<u128, MAX_NO_TXNS>,
+		pub xcm_status: XcmStatus
+	}
+
+	impl<T: Config> TxnReceipt<T> {
+		pub fn new(
+			payee: T::AccountId,
+			payer: T::AccountId,
+			multi_id: T::AccountId,
+			ref_no: BoundedVec<u8,MAX_BYTES>,
+			amount: u128,
+			txn: u128,
+			currency:Option<Token>
+		) -> Self {
+
+			let mut no_txn = BoundedVec::new();
+			no_txn.to_vec().push(txn);
+
+			Self {
+				payee, payer, reference_no: ref_no,
+				amount,currency, no_txn,
+				xcm_status: XcmStatus::Tbc, multi_id
+			}
+		}
+
+		pub fn update_txn(&mut self, txn: u128){
+			self.no_txn.try_push(txn).unwrap() // Put error handling
+		}
+
+		pub fn update_amount(&mut self, amount: u128){
+			self.amount += amount
+		}
+	}
+
+
+	// Call executed struct information
+	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+	pub struct CallExecuted<T: Config> {
+		payer: T::AccountId,
+		payee: T::AccountId,
+		allowed_multi_id: T::AccountId,
+		confirmed_multi_id: T::AccountId,
+		proof: T::Hash,
+		time: BlockNumberFor<T>,
+	}
+
+	impl<T> CallExecuted<T>
+		where
+			T: Config,
+	{
+		pub(super) fn new(
+			payer: T::AccountId,
+			payee: T::AccountId,
+			allowed_multi_id: T::AccountId,
+			confirmed_multi_id: T::AccountId,
+			proof: T::Hash,
+			time: BlockNumberFor<T>,
+		) -> Self {
+			CallExecuted { payer, payee, allowed_multi_id, confirmed_multi_id, proof, time }
+		}
+	}
+
+
+
+	impl<T: Config> Pallet<T>{
+
 
 		// pub fn ensure_xcm_signed<OuterOrigin, AccountId>(o: OuterOrigin) -> Result<AccountId, Error<T>>
 		// 	where
@@ -63,24 +183,24 @@ pub mod utils {
 			// Check the balance receipt in Vane Soverign Account before proceeding
 
 
-			let accounts = vane_payment::AccountSigners::<T>::new(payee.clone(), payer.clone(), None);
-			let multi_id = vane_payment::Pallet::<T>::derive_multi_id(accounts.clone());
+			let accounts = AccountSigners::<T>::new(payee.clone(), payer.clone());
+			let multi_id = Self::derive_multi_id(accounts.clone());
 
 
-			let ref_no = vane_payment::Pallet::<T>::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
+			let ref_no = Self::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
 
-			vane_payment::AllowedSigners::<T>::insert(&payer, ref_no.to_vec(), accounts);
+			AllowedSigners::<T>::insert(&payer, ref_no.to_vec(), accounts);
 
 			//if the multi_id is the same as previous Receipt just increment the total amount and add the txn_no amount
 
             let receipt =
-				vane_payment::TxnReceipt::<T>::new(payee.clone(), payer.clone(),multi_id.clone(), ref_no.clone(), amount.clone(),(amount),Some(currency));
+				TxnReceipt::<T>::new(payee.clone(), payer.clone(),multi_id.clone(), ref_no.clone(), amount.clone(),(amount),Some(currency));
 
 			// Store to each storage item for txntickets
 			// Useful for getting reference no for TXN confirmation
 			// Start with the payee storage
 
-			vane_payment::PayeeTxnReceipt::<T>::mutate(&payee, |p_vec|{
+			PayeeTxnReceipt::<T>::mutate(&payee, |p_vec|{
 				// Check if the multi_id already exists in the receipts and get its index of the receipt
 				let index = p_vec.iter().position(|receipt| receipt.multi_id == multi_id);
 				if let Some(idx) = index {
@@ -95,7 +215,7 @@ pub mod utils {
 			});
 
 			// Update for Payer/Sender Txn receipt
-			let existing_payer_receipt = vane_payment::PayerTxnReceipt::<T>::get(&payer,&payee);
+			let existing_payer_receipt = PayerTxnReceipt::<T>::get(&payer,&payee);
 
 			if let Some(mut receipt) = existing_payer_receipt {
 
@@ -107,11 +227,11 @@ pub mod utils {
 
 			}else{
 
-				vane_payment::PayerTxnReceipt::<T>::insert(&payer,&payee,receipt);
+				PayerTxnReceipt::<T>::insert(&payer,&payee,receipt);
 			}
 
 
-			vane_payment::Pallet::<T>::create_multi_account(multi_id.clone()).map_err(|_| Error::<T>::UnexpectedError)?;
+			Self::create_multi_account(multi_id.clone()).map_err(|_| Error::<T>::UnexpectedError)?;
 
 			let time = <frame_system::Pallet<T>>::block_number();
 
@@ -238,5 +358,51 @@ pub mod utils {
 
             Ok(())
         }
-    }
+
+
+		// Util functions
+
+		pub fn derive_reference_no(
+			payer: T::AccountId,
+			payee: T::AccountId,
+			multi_id: T::AccountId,
+		) -> BoundedVec<u8,MAX_BYTES> {
+			let mut buffer = Vec::new();
+			buffer.append(&mut payer.using_encoded(blake2_256).to_vec());
+			buffer.append(&mut payee.using_encoded(blake2_256).to_vec());
+			buffer.append(&mut multi_id.using_encoded(blake2_256).to_vec());
+
+			let reference = blake2_256(&buffer[..]);
+			return reference[20..26].to_vec().try_into().unwrap(); // Proper error handling should be done
+		}
+
+
+		pub  fn derive_multi_id(account_object: AccountSigners<T>) -> T::AccountId {
+
+			let (acc1, acc2) = account_object.get_accounts();
+
+			let entropy =  (b"vane/salt", acc1, acc2).using_encoded(blake2_256);
+
+			let multi_account = Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))
+				.expect("infinite length input; no invalid inputs for type; qed");
+
+			multi_account
+		}
+
+		pub fn create_multi_account(multi_id: T::AccountId) -> DispatchResult {
+			let account_info = AccountInfo::<T::Nonce, T::AccountData> { ..Default::default() };
+
+			// Ensure the multi_id account is not yet registered in the storage
+			if <frame_system::Pallet<T>>::account_exists(&multi_id) {
+				return Ok(());
+			} else {
+				// Register to frame_system Account Storage item;
+				<frame_system::Account<T>>::set(multi_id, account_info);
+				Ok(())
+			}
+		}
+
+	}
+
+
 }

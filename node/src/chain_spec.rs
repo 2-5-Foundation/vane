@@ -378,6 +378,10 @@ fn testnet_genesis(
 		// This should initialize it to whatever we have set in the pallet
 		polkadot_xcm: PolkadotXcmConfig::default(),
 		transaction_payment: Default::default(),
+
+		vane_xcm_transfer: vane_tanssi_runtime::VaneXcmTransferConfig {
+			para_account: Some(para_account)
+		}
 	}
 }
 
