@@ -23,8 +23,13 @@ use crate::{
 
 fn load_spec(id: &str,para_id:ParaId) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	Ok(match id {
-		"tanssi" => Box::new(chain_spec::tanssi_config(para_id,vec![])),
-		"parachain" => Box::new(chain_spec::parachain_config(para_id,vec![])),
+
+		// #[cfg(feature = "vane-tanssi")]
+		"dev"|"tanssi" => Box::new(chain_spec::tanssi_config(para_id,vec![])),
+
+		// #[cfg(feature = "vane-parachain")]
+		""|"parachain" => Box::new(chain_spec::parachain_config(para_id,vec![])),
+
 		path => Box::new(chain_spec::ParachainChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 	})
 }
@@ -61,7 +66,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-		load_spec(id, self.para_id.unwrap_or(1000).into())
+		load_spec(id, self.para_id.unwrap_or(2000).into())
 	}
 }
 
@@ -219,32 +224,7 @@ pub fn run() -> Result<()> {
 				_ => Err("Benchmarking sub-command unsupported".into()),
 			}
 		},
-		#[cfg(feature = "try-runtime")]
-		Some(Subcommand::TryRuntime(cmd)) => {
-			use parachain_template_runtime::MILLISECS_PER_BLOCK;
-			use try_runtime_cli::block_building_info::timestamp_with_aura_info;
 
-			let runner = cli.create_runner(cmd)?;
-
-			type HostFunctions =
-				(sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions);
-
-			// grab the task manager.
-			let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
-			let task_manager =
-				sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
-					.map_err(|e| format!("Error: {:?}", e))?;
-
-			let info_provider = timestamp_with_aura_info(MILLISECS_PER_BLOCK);
-
-			runner.async_run(|_| {
-				Ok((cmd.run::<Block, HostFunctions, _>(Some(info_provider)), task_manager))
-			})
-		},
-		#[cfg(not(feature = "try-runtime"))]
-		Some(Subcommand::TryRuntime) => Err("Try-runtime was not enabled when building the node. \
-			You can enable it with `--features try-runtime`."
-			.into()),
 		None => {
 			let runner = cli.create_runner(&cli.run.normalize())?;
 			let collator_options = cli.run.collator_options();
@@ -308,7 +288,34 @@ pub fn run() -> Result<()> {
 					.map(|r| r.0)
 					.map_err(Into::into)
 			})
-		}
+		},
+		#[cfg(feature = "try-runtime")]
+		Some(Subcommand::TryRuntime(cmd)) => {
+			use parachain_template_runtime::MILLISECS_PER_BLOCK;
+			use try_runtime_cli::block_building_info::timestamp_with_aura_info;
+
+			let runner = cli.create_runner(cmd)?;
+
+			type HostFunctions =
+			(sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions);
+
+			// grab the task manager.
+			let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
+			let task_manager =
+				sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
+					.map_err(|e| format!("Error: {:?}", e))?;
+
+			let info_provider = timestamp_with_aura_info(MILLISECS_PER_BLOCK);
+
+			runner.async_run(|_| {
+				Ok((cmd.run::<Block, HostFunctions, _>(Some(info_provider)), task_manager))
+			})
+		},
+		#[cfg(not(feature = "try-runtime"))]
+		Some(Subcommand::TryRuntime) => Err("Try-runtime was not enabled when building the node. \
+			You can enable it with `--features try-runtime`."
+			.into()),
+
 	}
 }
 

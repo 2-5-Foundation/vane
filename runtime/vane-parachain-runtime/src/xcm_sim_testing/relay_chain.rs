@@ -26,21 +26,21 @@ use frame_system::EnsureRoot;
 use sp_core::{ConstU32, H256};
 use sp_runtime::{traits::IdentityLookup, AccountId32};
 
-use polkadot_parachain::primitives::Id as ParaId;
+use polkadot_parachain_primitives::primitives::Id as ParaId;
 use polkadot_runtime_parachains::{
 	configuration,
 	inclusion::{AggregateMessageOrigin, UmpQueueId},
 	origin, shared,
 };
-use xcm::latest::prelude::*;
-use xcm_builder::{
+use staging_xcm::latest::prelude::*;
+use staging_xcm_builder::{
 	Account32Hash, AccountId32Aliases, AllowUnpaidExecutionFrom, AsPrefixedGeneralIndex,
 	ChildParachainAsNative, ChildParachainConvertsVia, ChildSystemParachainAsSuperuser,
 	ConvertedConcreteId, CurrencyAdapter as XcmCurrencyAdapter, FixedRateOfFungible,
 	FixedWeightBounds, IsConcrete, NoChecking, NonFungiblesAdapter, SignedAccountId32AsNative,
 	SignedToAccountId32, SovereignSignedViaLocation,
 };
-use xcm_executor::{traits::JustTry, Config, XcmExecutor};
+use staging_xcm_executor::{traits::JustTry, Config, XcmExecutor};
 
 pub type AccountId = AccountId32;
 pub type Balance = u128;
@@ -119,7 +119,7 @@ pub type LocationToAccountId = (
 
 pub type LocalAssetTransactor = (
 	XcmCurrencyAdapter<Balances, IsConcrete<TokenLocation>, LocationToAccountId, AccountId, ()>
-	
+
 );
 
 type LocalOriginConverter = (
@@ -233,9 +233,9 @@ impl ProcessMessage for MessageProcessor {
 		let para = match origin {
 			AggregateMessageOrigin::Ump(UmpQueueId::Para(para)) => para,
 		};
-		xcm_builder::ProcessXcmMessage::<
+		staging_xcm_builder::ProcessXcmMessage::<
 			Junction,
-			xcm_executor::XcmExecutor<XcmConfig>,
+			staging_xcm_executor::XcmExecutor<XcmConfig>,
 			RuntimeCall,
 		>::process_message(message, Junction::Parachain(para.into()), meter, id)
 	}

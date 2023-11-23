@@ -10,18 +10,17 @@ use sp_runtime::{
 	AccountId32,
 };
 use sp_std::prelude::*;
-use vane_xcm;
+use vane_xcm_transfer_system;
 
-use vane_xcm::{orml_traits,orml_xcm_support};
 
 use pallet_xcm::XcmPassthrough;
 use polkadot_core_primitives::BlockNumber as RelayBlockNumber;
-use polkadot_parachain::primitives::{
+use polkadot_parachain_primitives::primitives::{
 	DmpMessageHandler, Id as ParaId, Sibling, XcmpMessageFormat, XcmpMessageHandler,
 };
-use xcm::{latest::prelude::*, VersionedXcm};
-use xcm_builder::{Account32Hash, AccountId32Aliases, AliasForeignAccountId32, AllowUnpaidExecutionFrom, ConvertedConcreteId, CurrencyAdapter as XcmCurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, IsConcrete, NativeAsset, NoChecking, NonFungiblesAdapter, ParentIsPreset, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation};
-use xcm_executor::{
+use staging_xcm::{latest::prelude::*, VersionedXcm};
+use staging_xcm_builder::{Account32Hash, AccountId32Aliases, AliasForeignAccountId32, AllowUnpaidExecutionFrom, ConvertedConcreteId, CurrencyAdapter as XcmCurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, IsConcrete, NativeAsset, NoChecking, NonFungiblesAdapter, ParentIsPreset, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation};
+use staging_xcm_executor::{
 	traits::JustTry,
 	Config, XcmExecutor,
 };
@@ -29,12 +28,12 @@ use xcm_simulator::PhantomData;
 use assets_common::foreign_creators::ForeignCreators;
 
 use vane_primitive::{CurrencyId, MultiCurrencyAsset, MultiCurrencyConverter, VaneDerivedAssets, VaneForeignCreators};
-
+use staging_xcm_executor::traits::MatchesFungible;
+use sp_runtime::traits::{CheckedConversion, Convert};
 
 // `EnsureOriginWithArg` impl for `CreateOrigin` which allows only XCM origins
 // which are locations containing the class location.
-use xcm_executor::traits::ConvertLocation;
-use vane_xcm::orml_xcm_support::IsNativeConcrete;
+use staging_xcm_executor::traits::ConvertLocation;
 use crate::{ApprovalDeposit, ForeignAssetsAssetAccountDeposit, ForeignAssetsAssetDeposit, ForeignAssetsMetadataDepositBase, ForeignCreatorsSovereignAccountOf, MetadataDepositPerByte, StringLimit, weights, xcm_config};
 use crate::xcm_sim_testing::Vane;
 
@@ -92,7 +91,24 @@ parameter_types! {
 }
 
 
-pub type LocalAssetTransactor = vane_primitive::VaneMultiCurrencyAdapter<
+pub struct IsNativeConcrete<CurrencyId, CurrencyIdConvert>(sp_std::marker::PhantomData<(CurrencyId, CurrencyIdConvert)>);
+impl<CurrencyId, CurrencyIdConvert, Amount> MatchesFungible<Amount> for IsNativeConcrete<CurrencyId, CurrencyIdConvert>
+	where
+		CurrencyIdConvert: Convert<MultiLocation, Option<CurrencyId>>,
+		Amount: TryFrom<u128>,
+{
+	fn matches_fungible(a: &MultiAsset) -> Option<Amount> {
+		if let (Fungible(ref amount), Concrete(ref location)) = (&a.fun, &a.id) {
+			if CurrencyIdConvert::convert(*location).is_some() {
+				return CheckedConversion::checked_from(*amount);
+			}
+		}
+		None
+	}
+}
+
+
+pub type LocalAssetTransactor =  vane_primitive::VaneMultiCurrencyAdapter<
 	MultiCurrencyAsset<Runtime>,
 	(), // handler for unknown assets
 	IsNativeConcrete<CurrencyId, MultiCurrencyConverter<Runtime>>,
@@ -100,7 +116,7 @@ pub type LocalAssetTransactor = vane_primitive::VaneMultiCurrencyAdapter<
 	LocationToAccountId,
 	CurrencyId,
 	MultiCurrencyConverter<Runtime>,
-	(),
+	// HandlingFailedDeposits
 >;
 
 pub type SovereignAccountOf = (
@@ -407,22 +423,9 @@ impl pallet_xcm::Config for Runtime {
 }
 
 
-impl vane_order::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-}
 
-impl vane_payment::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-}
 
-impl vane_register::Config for Runtime {
-	type Currency = Balances;
-	type RuntimeEvent = RuntimeEvent;
-}
-
-impl vane_xcm::Config for Runtime {
+impl vane_xcm_transfer_system::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
 }
 impl parachain_info::Config for Runtime {}
@@ -466,10 +469,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		MsgQueue: mock_msg_queue::{Pallet, Storage, Event<T>},
 		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin},
-		VaneRegister: vane_register,
-		VanePayment: vane_payment,
-		VaneOrder: vane_order,
-		VaneXcm: vane_xcm,
+		VaneXcmTransfer: vane_xcm_transfer_system = 9,
 		VaneAssets: pallet_assets = 10
 	}
 );
