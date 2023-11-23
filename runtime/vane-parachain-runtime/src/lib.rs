@@ -510,19 +510,7 @@ parameter_types! {
 	pub const CouncilMaxMembers: u32 = 25;
 }
 
-type CouncilCollective = pallet_collective::Instance1;
-impl pallet_collective::Config<CouncilCollective> for Runtime {
-	type RuntimeOrigin = RuntimeOrigin;
-	type Proposal = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type MotionDuration = CouncilMotionDuration;
-	type MaxProposals = CouncilMaxProposals;
-	type MaxMembers = CouncilMaxMembers;
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
-	type SetMembersOrigin = EnsureRoot<AccountId>;
-	type MaxProposalWeight = MaxCollectivesProposalWeight;
-}
+
 
 use sp_core::ConstBool;
 use sp_runtime::traits::AccountIdConversion;
@@ -775,7 +763,6 @@ construct_runtime!(
 
 		// Governance
 		Sudo: pallet_sudo = 15,
-		Council: pallet_collective::<Instance1> = 16,
 
 		// Collator support. The order of these 4 are important and shall not change.
 		Authorship: pallet_authorship = 20,

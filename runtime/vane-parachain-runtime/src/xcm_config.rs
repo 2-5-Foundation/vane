@@ -15,7 +15,9 @@ use staging_xcm::latest::prelude::*;
 use staging_xcm_builder::{AccountId32Aliases, AliasForeignAccountId32, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic};
 use staging_xcm_executor::XcmExecutor;
 use vane_primitive::{CurrencyId, MultiCurrencyAsset, MultiCurrencyConverter};
-use orml_xcm_support::IsNativeConcrete;
+use staging_xcm_executor::traits::MatchesFungible;
+use sp_runtime::traits::{CheckedConversion, Convert};
+
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -23,6 +25,23 @@ parameter_types! {
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	pub UniversalLocation: InteriorMultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
 }
+
+pub struct IsNativeConcrete<CurrencyId, CurrencyIdConvert>(sp_std::marker::PhantomData<(CurrencyId, CurrencyIdConvert)>);
+impl<CurrencyId, CurrencyIdConvert, Amount> MatchesFungible<Amount> for IsNativeConcrete<CurrencyId, CurrencyIdConvert>
+	where
+		CurrencyIdConvert: Convert<MultiLocation, Option<CurrencyId>>,
+		Amount: TryFrom<u128>,
+{
+	fn matches_fungible(a: &MultiAsset) -> Option<Amount> {
+		if let (Fungible(ref amount), Concrete(ref location)) = (&a.fun, &a.id) {
+			if CurrencyIdConvert::convert(*location).is_some() {
+				return CheckedConversion::checked_from(*amount);
+			}
+		}
+		None
+	}
+}
+
 
 /// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM
@@ -45,7 +64,7 @@ pub type LocalAssetTransactor =  vane_primitive::VaneMultiCurrencyAdapter<
 	LocationToAccountId,
 	CurrencyId,
 	MultiCurrencyConverter<Runtime>,
-	(),
+	// HandlingFailedDeposits
 >;
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
