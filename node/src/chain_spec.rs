@@ -1,5 +1,8 @@
 use cumulus_primitives_core::ParaId;
-use vane_tanssi_runtime::{AccountId, Signature, EXISTENTIAL_DEPOSIT,PolkadotXcmConfig};
+
+use vane_tanssi_runtime::{AccountId, Signature};
+use vane_para_runtime::{AccountId as VaneParaRuntimeAcountId, Signature as VaneParaRuntimeSignature, EXISTENTIAL_DEPOSIT, AuraId};
+
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -14,8 +17,9 @@ use sp_runtime::{MultiSigner};
 use vane_tanssi_runtime::CurrencyId::DOT;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
-pub type ChainSpec =
-	sc_service::GenericChainSpec<vane_tanssi_runtime::GenesisConfig, Extensions>;
+pub type TanssiChainSpec = sc_service::GenericChainSpec<vane_tanssi_runtime::GenesisConfig, Extensions>;
+
+pub type ParachainChainSpec = sc_service::GenericChainSpec<vane_para_runtime::GenesisConfig, Extensions>;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = staging_xcm::prelude::XCM_VERSION;
@@ -27,7 +31,7 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 		.public()
 }
 
-/// The extensions for the [`ChainSpec`].
+// The extensions for the [`ChainSpec`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
 #[serde(deny_unknown_fields)]
 pub struct Extensions {
@@ -50,9 +54,9 @@ const ORCHESTRATOR: ParaId = ParaId::new(1000);
 /// Generate collator keys from seed.
 ///
 /// This function's return type must always match the session keys of the chain in tuple format.
-// pub fn get_collator_keys_from_seed(seed: &str) -> AuraId {
-// 	get_from_seed::<AuraId>(seed)
-// }
+pub fn get_collator_keys_from_seed(seed: &str) -> AuraId {
+	get_from_seed::<AuraId>(seed)
+}
 
 /// Helper function to generate an account ID from seed
 pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
@@ -65,9 +69,9 @@ where
 /// Generate the session keys from individual elements.
 ///
 /// The input must be a tuple of individual keys (a single arg for now since we have just one key).
-// pub fn template_session_keys(keys: AuraId) -> vane_para_runtime::SessionKeys {
-// 	vane_para_runtime::SessionKeys { aura: keys }
-// }
+pub fn template_session_keys(keys: AuraId) -> vane_para_runtime::SessionKeys {
+	vane_para_runtime::SessionKeys { aura: keys }
+}
 
 
 pub fn pre_funded_accounts() -> Vec<AccountId> {
@@ -82,7 +86,7 @@ pub fn pre_funded_accounts() -> Vec<AccountId> {
 
 
 
-pub fn development_config(para_id: ParaId, boot_nodes: Vec<String>) -> ChainSpec {
+pub fn tanssi_config(para_id: ParaId, boot_nodes: Vec<String>) -> TanssiChainSpec {
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), "UNIT".into());
@@ -101,18 +105,20 @@ pub fn development_config(para_id: ParaId, boot_nodes: Vec<String>) -> ChainSpec
 		})
 		.collect();
 
-	ChainSpec::from_genesis(
+	TanssiChainSpec::from_genesis(
 		// Name
-		"Development",
+		"Vane-Tanssi-Container-Chain",
 		// ID
-		"dev",
-		ChainType::Development,
+		"Vane-Tanssi",
+		ChainType::Custom("Vane-Tanssi".to_string()),
 		move || {
-			testnet_genesis(
+			genesis_config(
+				ConfigChain::Tanssi,
 				default_funded_accounts.clone(),
 				para_id,
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
-			)
+				vec![] // No invulnerables as tanssi-runtime do not use pallet collator
+			).0.unwrap()
 		},
 		boot_nodes,
 		None,
@@ -178,13 +184,12 @@ pub fn development_config(para_id: ParaId, boot_nodes: Vec<String>) -> ChainSpec
 // }
 
 
-pub fn local_testnet_config(para_id: ParaId, boot_nodes: Vec<String>) -> ChainSpec {
+pub fn parachain_config(para_id: ParaId, boot_nodes: Vec<String>) -> ParachainChainSpec {
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), "UNIT".into());
 	properties.insert("tokenDecimals".into(), 5.into());
 	properties.insert("ss58Format".into(), 42.into());
-	properties.insert("isEthereum".into(), false.into());
 	let protocol_id = Some(format!("vane-network-{}", para_id));
 
 	let mut default_funded_accounts = pre_funded_accounts();
@@ -198,18 +203,29 @@ pub fn local_testnet_config(para_id: ParaId, boot_nodes: Vec<String>) -> ChainSp
 		})
 		.collect();
 
-	ChainSpec::from_genesis(
+	ParachainChainSpec::from_genesis(
 		// Name
 		&format!("vane-network_{}", para_id),
 		// ID
 		&format!("vane-network_{}", para_id),
-		ChainType::Local,
+		ChainType::Custom("Vane-Parachain".to_string()),
 		move || {
-			testnet_genesis(
+			genesis_config(
+				ConfigChain::Parachain,
 				default_funded_accounts.clone(),
 				para_id,
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
-			)
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						get_collator_keys_from_seed("Alice"),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						get_collator_keys_from_seed("Bob"),
+					),
+				],
+			).1.unwrap()
 		},
 		// Bootnodes
 		boot_nodes,
@@ -317,12 +333,22 @@ fn calculate_sovereign_account<Pair>(
 }
 
 
+#[derive(Encode, Decode)]
+pub enum ConfigChain {
+	Tanssi,
+	Parachain
+}
 
-fn testnet_genesis(
+
+
+fn genesis_config(
+	chain: ConfigChain,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
 	root_key: AccountId,
-) -> vane_tanssi_runtime::RuntimeGenesisConfig {
+	invulnerables: Vec<(AccountId, AuraId)>
+
+) -> (Option<vane_tanssi_runtime::RuntimeGenesisConfig>, Option<vane_para_runtime::RuntimeGenesisConfig>) {
 
 	let alice = get_from_seed::<sr25519::Public>("Alice");
 	let bob = get_from_seed::<sr25519::Public>("Bob");
@@ -336,53 +362,135 @@ fn testnet_genesis(
 	let para_account = sp_runtime::AccountId32::from_ss58check(&sovererign_acount).unwrap();
 
 
+	 let chain_spec =match chain {
 
-	vane_tanssi_runtime::RuntimeGenesisConfig {
-		system: vane_tanssi_runtime::SystemConfig {
-			code: vane_tanssi_runtime::WASM_BINARY
-				.expect("WASM binary was not build, please build it!")
-				.to_vec(),
-			..Default::default()
+		ConfigChain::Tanssi => {
+
+			let vane_tanssi_runtime_genesis_config = vane_tanssi_runtime::RuntimeGenesisConfig {
+				system: vane_tanssi_runtime::SystemConfig {
+					code: vane_tanssi_runtime::WASM_BINARY
+						.expect("WASM binary was not build, please build it!")
+						.to_vec(),
+					..Default::default()
+				},
+				balances: vane_tanssi_runtime::BalancesConfig {
+					balances: endowed_accounts
+						.iter()
+						.cloned()
+						.map(|k| (k, 1 << 60))
+						.collect(),
+				},
+				parachain_info: vane_tanssi_runtime::ParachainInfoConfig {
+					parachain_id: id,
+					..Default::default()
+				},
+
+				parachain_system: Default::default(),
+				sudo: vane_tanssi_runtime::SudoConfig {
+					key: Some(root_key),
+				},
+
+				authorities_noting: vane_tanssi_runtime::AuthoritiesNotingConfig {
+					orchestrator_para_id: ORCHESTRATOR,
+					..Default::default()
+				},
+
+				vane_assets: vane_tanssi_runtime::VaneAssetsConfig {
+
+					metadata: vec![(DOT,v_dot.clone(), v_dot,10)],
+
+					assets: vec![(DOT,para_account.clone(),true,1)],
+
+					accounts: vec![(DOT,para_account.clone(),0)]
+
+				},
+				// This should initialize it to whatever we have set in the pallet
+				polkadot_xcm: vane_tanssi_runtime::PolkadotXcmConfig::default(),
+				transaction_payment: Default::default(),
+
+				vane_xcm_transfer: vane_tanssi_runtime::VaneXcmTransferConfig {
+					para_account: Some(para_account)
+				}
+			};
+
+			(Some(vane_tanssi_runtime_genesis_config),None)
+
 		},
-		balances: vane_tanssi_runtime::BalancesConfig {
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|k| (k, 1 << 60))
-				.collect(),
-		},
-		parachain_info: vane_tanssi_runtime::ParachainInfoConfig {
-			parachain_id: id,
-			..Default::default()
-		},
 
-		parachain_system: Default::default(),
-		sudo: vane_tanssi_runtime::SudoConfig {
-			key: Some(root_key),
-		},
+		ConfigChain::Parachain => {
 
-		authorities_noting: vane_tanssi_runtime::AuthoritiesNotingConfig {
-			orchestrator_para_id: ORCHESTRATOR,
-			..Default::default()
-		},
+			let vane_para_runtime_genesis_config = vane_para_runtime::RuntimeGenesisConfig {
+				system: vane_para_runtime::SystemConfig {
+					code: vane_para_runtime::WASM_BINARY
+						.expect("WASM binary was not build, please build it!")
+						.to_vec(),
+					..Default::default()
+				},
+				balances: vane_para_runtime::BalancesConfig {
+					balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+				},
 
-		vane_assets: vane_tanssi_runtime::VaneAssetsConfig {
+				vane_assets: vane_para_runtime::VaneAssetsConfig {
 
-			metadata: vec![(DOT,v_dot.clone(), v_dot,10)],
+					metadata: vec![(DOT,v_dot.clone(), v_dot,10)],
 
-			assets: vec![(DOT,para_account.clone(),true,1)],
+					assets: vec![(DOT,para_account.clone(),true,1)],
 
-			accounts: vec![(DOT,para_account.clone(),0)]
+					accounts: vec![(DOT,para_account.clone(),0)]
 
-		},
-		// This should initialize it to whatever we have set in the pallet
-		polkadot_xcm: PolkadotXcmConfig::default(),
-		transaction_payment: Default::default(),
+				},
 
-		vane_xcm_transfer: vane_tanssi_runtime::VaneXcmTransferConfig {
-			para_account: Some(para_account)
+				vane_xcm_transfer: vane_para_runtime::VaneXcmTransferConfig {
+					para_account: Some(para_account)
+				},
+
+				parachain_info: vane_para_runtime::ParachainInfoConfig {
+					parachain_id: id,
+					..Default::default()
+				},
+
+				collator_selection: vane_para_runtime::CollatorSelectionConfig {
+					invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
+					candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
+					..Default::default()
+				},
+
+				session: vane_para_runtime::SessionConfig {
+					keys: invulnerables
+						.into_iter()
+						.map(|(acc, aura)| {
+							(
+								acc.clone(),                 // account id
+								acc,                         // validator id
+								template_session_keys(aura), // session keys
+							)
+						})
+						.collect(),
+				},
+				// no need to pass anything to aura, in fact it will panic if we do. Session will take care
+				// of this.
+				aura: Default::default(),
+				aura_ext: Default::default(),
+				sudo: vane_para_runtime::SudoConfig { key: Some(root_key) },
+
+				parachain_system: Default::default(),
+
+				polkadot_xcm: vane_para_runtime::PolkadotXcmConfig {
+					safe_xcm_version: Some(SAFE_XCM_VERSION),
+					..Default::default()
+				},
+
+				transaction_payment: Default::default(),
+
+			};
+
+			(None, Some(vane_para_runtime_genesis_config))
+
 		}
-	}
+
+	 };
+
+	chain_spec
 }
 
 

@@ -19,8 +19,10 @@ hex = "0.4.3"
 serde = {version = "1.0.160", features = ["derive"]}
 color-print = "0.3.4"
 futures ="*"
+
 # Local
 vane-tanssi-runtime = {path = "../runtime/vane-container-runtime"}
+vane-para-runtime = {path = "../runtime/vane-parachain-runtime"}
 
 #Tanssi
 nimbus-consensus 										= { workspace = true }
