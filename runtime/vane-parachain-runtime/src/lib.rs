@@ -511,7 +511,6 @@ parameter_types! {
 }
 
 
-
 use sp_core::ConstBool;
 use sp_runtime::traits::AccountIdConversion;
 use staging_xcm_executor::traits::ConvertLocation;
@@ -558,25 +557,13 @@ impl pallet_collator_selection::Config for Runtime {
 	type ValidatorRegistration = Session;
 	type WeightInfo = ();
 }
-// Custom pallets Implementation
-// impl vane_order::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type Currency = Balances;
-// }
 
-// impl vane_payment::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type Currency = Balances;
-// }
+// Vane pallets Implementation
 
-// impl vane_register::Config for Runtime {
-// 	type Currency = Balances;
-// 	type RuntimeEvent = RuntimeEvent;
-// }
 
-// impl vane_xcm::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// }
+impl vane_xcm_transfer_system::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+}
 
 
 
@@ -771,17 +758,15 @@ construct_runtime!(
 		Aura: pallet_aura = 23,
 		AuraExt: cumulus_pallet_aura_ext = 24,
 
-		// XCM helpers.
-		XcmpQueue: cumulus_pallet_xcmp_queue = 30,
-		PolkadotXcm: pallet_xcm = 31,
-		CumulusXcm: cumulus_pallet_xcm = 32,
-		DmpQueue: cumulus_pallet_dmp_queue = 33,
+		 // XCM
+        XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Storage, Event<T>} = 70,
+        CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 71,
+        DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 72,
+        PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config<T>} = 73,
 
-		// Custom Pallets
-		//VaneRegister: vane_register = 50,
-		//VaneOrder: vane_order = 51,
-		// VanePayment: vane_payment = 52,
-		// VaneXcm: vane_xcm = 53,
+		// Vane Pallets
+
+		VaneXcmTransfer: vane_xcm_transfer_system = 100
 
 	}
 );
