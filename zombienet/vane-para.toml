@@ -28,3 +28,8 @@ onboard_as_parachain = true
 	ws_port = 9910
 	command = "./target/release/vane-node"
 #	args = [ "-lxcm=trace", "--state-cache-size=0" ]
+	[[parachains.collators]]
+	name = "vane-collator_2"
+	ws_port = 9950
+	command = "./target/release/vane-node"
+#	args = [ "-lxcm=trace", "--state-cache-size=0" ]

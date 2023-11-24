@@ -1,6 +1,6 @@
 {
-  "name": "vane-network_2000",
-  "id": "vane-network_2000",
+  "name": "vane-network",
+  "id": "vane-network",
   "chainType": "Local",
   "bootNodes": [],
   "telemetryEndpoints": null,
@@ -26,23 +26,23 @@
         "balances": [
           [
             "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy",
-            1152921504606846976
+            10000000000
           ],
           [
             "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
-            1152921504606846976
+            10000000000
           ],
           [
             "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
-            1152921504606846976
+            10000000000
           ],
           [
             "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-            1152921504606846976
+            10000000000
           ],
           [
             "5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw",
-            1152921504606846976
+            10000000000
           ]
         ]
       },

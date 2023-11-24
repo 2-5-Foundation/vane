@@ -90,7 +90,7 @@ pub fn tanssi_config(para_id: ParaId, boot_nodes: Vec<String>) -> TanssiChainSpe
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), "UNIT".into());
-	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenDecimals".into(), 5.into());
 	properties.insert("ss58Format".into(), 42.into());
 	properties.insert("isEthereum".into(), false.into());
 
@@ -154,9 +154,9 @@ pub fn parachain_config(para_id: ParaId, boot_nodes: Vec<String>) -> ParachainCh
 
 	ParachainChainSpec::from_genesis(
 		// Name
-		&format!("vane-network_{}", para_id),
+		&format!("vane-network"),
 		// ID
-		&format!("vane-network_{}", para_id),
+		&format!("vane-network"),
 		ChainType::Local,
 		move || {
 			genesis_config(
@@ -272,7 +272,7 @@ fn genesis_config(
 					balances: endowed_accounts
 						.iter()
 						.cloned()
-						.map(|k| (k, 1 << 60))
+						.map(|k| (k, 10000000000))
 						.collect(),
 				},
 				parachain_info: vane_tanssi_runtime::ParachainInfoConfig {
@@ -322,7 +322,7 @@ fn genesis_config(
 					..Default::default()
 				},
 				balances: vane_para_runtime::BalancesConfig {
-					balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+					balances: endowed_accounts.iter().cloned().map(|k| (k, 10000000000)).collect(),
 				},
 
 				vane_assets: vane_para_runtime::VaneAssetsConfig {
