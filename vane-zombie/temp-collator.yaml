@@ -1,0 +1,37 @@
+metadata:
+  name: temp-collator
+  namespace: zombie-6a438dcd789cb4f4f8b13f91d1b5aab3
+  labels:
+    zombie-role: temp
+    app: zombienet
+    zombie-ns: zombie-6a438dcd789cb4f4f8b13f91d1b5aab3
+    name: zombie-6a438dcd789cb4f4f8b13f91d1b5aab3
+    instance: temp-collator
+spec:
+  cfgPath: vane-zombie/temp-collator/cfg
+  dataPath: vane-zombie/temp-collator/data
+  ports:
+    - containerPort: 9615
+      name: prometheus
+      flag: --prometheus-port
+      hostPort: 57489
+    - containerPort: 9933
+      name: rpc
+      flag: --rpc-port
+      hostPort: 57488
+    - containerPort: 9944
+      name: rpc-ws
+      flag: --ws-port
+      hostPort: 57487
+    - containerPort: 30333
+      name: p2p
+      flag: --port
+      hostPort: 57486
+  command:
+    - bash
+    - -c
+    - ./target/release/vane-node export-genesis-state --chain
+      vane-zombie/2000-rococo-local.json > vane-zombie/cfg/genesis-state-2000 &&
+      ./target/release/vane-node export-genesis-wasm --chain
+      vane-zombie/2000-rococo-local.json > vane-zombie/cfg/genesis-wasm-2000
+  env: {}
