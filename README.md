@@ -1,5 +1,7 @@
 ## About
 
+[𝕏](https://twitter.com/VaneNetwork_): Vane Network
+
 ### Vane_Network
 
 Bringing safety into crypto transactions and a product on Polkadot & Ethereum enabling entrepreneurs expand their social commerce business by leveraging trust.
