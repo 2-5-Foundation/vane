@@ -123,7 +123,8 @@ We do strongly believe blockchain technology can tremendously expand social-comm
  
  coming soon...
 
-
+ ### Tech tinkering
+ *  Testing hyperbrige from Polytope-labs to launch vane l2 in eth and communicate with vane parachain
 
 
 
