@@ -1,22 +1,39 @@
-name: Rust
-
+name: build-vane
 on:
+  workflow_dispatch:
   push:
-    branches: [ "tanssi-branch" ]
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
   pull_request:
-    branches: [ "tanssi-branch" ]
-
-env:
-  CARGO_TERM_COLOR: always
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
 
 jobs:
-  build:
-
+  build-vane:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Install minimal nightly Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2023-05-22
+          target: wasm32-unknown-unknown
+          override: true
+
+      - name: Clean unused directories
+        run: sudo rm -rf /usr/share/dotnet;sudo rm -rf /opt/ghc;sudo rm -rf "/usr/local/share/boost";sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+      - name: Install Protobuf
+        run: sudo apt install protobuf-compiler
+
+      - name: Run build 
+        run: cargo build
