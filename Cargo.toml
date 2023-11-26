@@ -75,6 +75,7 @@ staging-xcm-builder = { git = "https://github.com/moondance-labs/polkadot-sdk",d
 pallet-aura = { git = "https://github.com/moondance-labs/polkadot-sdk", default-features = false, branch = "tanssi-polkadot-v1.1.0" }
 pallet-collator-selection = { git = "https://github.com/moondance-labs/polkadot-sdk", default-features = false, branch = "tanssi-polkadot-v1.1.0" }
 asset-hub-polkadot-runtime = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.1.0" }
+asset-hub-kusama-runtime = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.1.0" }
 integration-tests-common = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.1.0" }
 pallet-message-queue = { git = "https://github.com/moondance-labs/polkadot-sdk",  branch = "tanssi-polkadot-v1.1.0" }
 polkadot-core-primitives = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.1.0" }
@@ -102,6 +103,8 @@ cumulus-primitives-utility = { git = "https://github.com/moondance-labs/polkadot
 parachain-info = { git = "https://github.com/moondance-labs/polkadot-sdk", default-features = false , branch = "tanssi-polkadot-v1.1.0" }
 parachains-common = { git = "https://github.com/moondance-labs/polkadot-sdk", default-features = false, branch = "tanssi-polkadot-v1.1.0" }
 assets-common = { git = "https://github.com/moondance-labs/polkadot-sdk",default-features = false, branch = "tanssi-polkadot-v1.1.0" }
+
+
 
 # TANSSI
 

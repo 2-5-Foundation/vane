@@ -1,15 +1,18 @@
 use std::sync::Once;
+use integration_tests_common::constants::{polkadot,rococo,asset_hub_polkadot,asset_hub_kusama};
 use xcm_emulator::*;
 use polkadot_core_primitives::AccountPublic;
 use sp_core::{sr25519, sr25519::Pair as PairType, Pair, Public};
 use sp_core::crypto::Ss58AddressFormatRegistry;
 use sp_runtime::MultiSigner;
 use sp_runtime::traits::IdentifyAccount;
-use crate::{AuraId,Balance};
+use crate::{AuraId,Balance,Runtime,AuraExt,XcmpQueue,DmpQueue,ParachainInfo,VaneAssets,PolkadotXcm,Balances,VaneXcmTransferSystem};
 use sp_core::crypto::Ss58Codec;
 use sp_runtime::BuildStorage;
 use staging_xcm_executor::traits::ConvertLocation;
 use frame_support::traits::UnfilteredDispatchable;
+use frame_support::pallet_prelude::*;
+
 
 const SAFE_XCM_VERSION: u32 =  crate::XCM_VERSION;
 
@@ -33,7 +36,7 @@ pub fn template_session_keys(keys: AuraId) -> crate::SessionKeys {
 	crate::SessionKeys { aura: keys }
 }
 
-#[derive(Encode,Decode)]
+#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct RococoId(u32);
 
 fn calculate_sovereign_account<Pair>(
@@ -106,6 +109,44 @@ pub mod accounts {
 	}
 }
 
+
+// Relay Network Implementation
+
+decl_test_relay_chains! {
+	#[api_version(5)]
+	pub struct Polkadot {
+		genesis = polkadot::genesis(),
+		on_init = (),
+		runtime = polkadot_runtime,
+		core = {
+			MessageProcessor: DefaultMessageProcessor<Polkadot>,
+			SovereignAccountOf: polkadot_runtime::xcm_config::SovereignAccountOf,
+		},
+		pallets = {
+			XcmPallet: polkadot_runtime::XcmPallet,
+			Balances: polkadot_runtime::Balances,
+			Hrmp: polkadot_runtime::Hrmp,
+		}
+	},
+	#[api_version(5)]
+	pub struct Rococo {
+		genesis = rococo::genesis(),
+		on_init = (),
+		runtime = rococo_runtime,
+		core = {
+			MessageProcessor: DefaultMessageProcessor<Rococo>,
+			SovereignAccountOf: rococo_runtime::xcm_config::LocationConverter, //TODO: rename to SovereignAccountOf,
+		},
+		pallets = {
+			XcmPallet: rococo_runtime::XcmPallet,
+			Sudo: rococo_runtime::Sudo,
+			Balances: rococo_runtime::Balances,
+		}
+	}
+}
+
+
+
 pub use vane_parachain::*;
 
 pub mod vane_parachain {
@@ -159,7 +200,7 @@ pub mod vane_parachain {
 
 			},
 
-			vane_xcm_transfer: crate::VaneXcmTransferConfig {
+			vane_xcm_transfer_system: crate::VaneXcmTransferSystemConfig {
 				para_account: Some(para_account)
 			},
 
@@ -202,161 +243,111 @@ pub mod vane_parachain {
 
 }
 
-// decl_test_relay_chains! {
-// 	#[api_version(5)]
-// 	pub struct PolkadotMain {
-// 		genesis = polkadot::genesis(),
-// 		on_init = (),
-// 		runtime = {
-// 			Runtime: polkadot_runtime::Runtime,
-// 			RuntimeOrigin: polkadot_runtime::RuntimeOrigin,
-// 			RuntimeCall: polkadot_runtime::RuntimeCall,
-// 			RuntimeEvent: polkadot_runtime::RuntimeEvent,
-// 			MessageQueue: polkadot_runtime::MessageQueue,
-// 			XcmConfig: polkadot_runtime::xcm_config::XcmConfig,
-// 			SovereignAccountOf: polkadot_runtime::xcm_config::SovereignAccountOf,
-// 			System: polkadot_runtime::System,
-// 			Balances: polkadot_runtime::Balances,
-// 		},
-//
-// 		pallets = {
-// 			XcmPallet: polkadot_runtime::XcmPallet,
-// 		}
-// 	},
-// 	#[api_version(5)]
-// 	pub struct Rococo {
-// 		genesis = rococo::genesis(),
-// 		on_init = (),
-// 		runtime = {
-// 			Runtime: rococo_runtime::Runtime,
-// 			RuntimeOrigin: rococo_runtime::RuntimeOrigin,
-// 			RuntimeCall: rococo_runtime::RuntimeCall,
-// 			RuntimeEvent: rococo_runtime::RuntimeEvent,
-// 			MessageQueue: rococo_runtime::MessageQueue,
-// 			XcmConfig: rococo_runtime::xcm_config::XcmConfig,
-// 			SovereignAccountOf: rococo_runtime::xcm_config::LocationConverter, //TODO: rename to SovereignAccountOf,
-// 			System: rococo_runtime::System,
-// 			Balances: rococo_runtime::Balances,
-// 		},
-// 		pallets_extra = {
-// 			XcmPallet: rococo_runtime::XcmPallet,
-// 			Sudo: rococo_runtime::Sudo,
-// 		}
-// 	}
-// }
-//
-// decl_test_parachains!(
-// 		pub struct VaneParachain {
-// 		genesis = vane_parachain::genesis(),
-// 		on_init = (),
-// 		runtime = {
-// 			Runtime: crate::Runtime,
-// 			RuntimeOrigin: crate::RuntimeOrigin,
-// 			RuntimeCall: crate::RuntimeCall,
-// 			RuntimeEvent: crate::RuntimeEvent,
-// 			XcmpMessageHandler: crate::XcmpQueue,
-// 			DmpMessageHandler: crate::DmpQueue,
-// 			LocationToAccountId: crate::xcm_config::LocationToAccountId,
-// 			System: crate::System,
-// 			Balances: crate::Balances,
-// 			ParachainSystem: crate::ParachainSystem,
-// 			ParachainInfo: crate::ParachainInfo,
-// 		},
-// 		pallets = {
-// 			PolkadotXcm: crate::PolkadotXcm,
-// 			VaneAssets: crate::VaneAssets,
-// 			VaneXcm: crate::VaneXcm,
-//
-// 		}
-// 	},
-// 		pub struct VaneRococo {
-// 		genesis = vane_parachain::genesis(),
-// 		on_init = (),
-// 		runtime = {
-// 			Runtime: crate::Runtime,
-// 			RuntimeOrigin: crate::RuntimeOrigin,
-// 			RuntimeCall: crate::RuntimeCall,
-// 			RuntimeEvent: crate::RuntimeEvent,
-// 			XcmpMessageHandler: crate::XcmpQueue,
-// 			DmpMessageHandler: crate::DmpQueue,
-// 			LocationToAccountId: crate::xcm_config::LocationToAccountId,
-// 			System: crate::System,
-// 			Balances: crate::Balances,
-// 			ParachainSystem: crate::ParachainSystem,
-// 			ParachainInfo: crate::ParachainInfo,
-// 		},
-// 		pallets = {
-// 			PolkadotXcm: crate::PolkadotXcm,
-// 			VaneAssets: crate::VaneAssets,
-// 			VaneXcm: crate::VaneXcm,
-//
-// 		}
-// 	},
-// 	pub struct AssetHubPolkadot {
-// 		genesis = asset_hub_polkadot::genesis(),
-// 		on_init = (),
-// 		runtime = {
-// 			Runtime: asset_hub_polkadot_runtime::Runtime,
-// 			RuntimeOrigin: asset_hub_polkadot_runtime::RuntimeOrigin,
-// 			RuntimeCall: asset_hub_polkadot_runtime::RuntimeCall,
-// 			RuntimeEvent: asset_hub_polkadot_runtime::RuntimeEvent,
-// 			XcmpMessageHandler: asset_hub_polkadot_runtime::XcmpQueue,
-// 			DmpMessageHandler: asset_hub_polkadot_runtime::DmpQueue,
-// 			LocationToAccountId: asset_hub_polkadot_runtime::xcm_config::LocationToAccountId,
-// 			System: asset_hub_polkadot_runtime::System,
-// 			Balances: asset_hub_polkadot_runtime::Balances,
-// 			ParachainSystem: asset_hub_polkadot_runtime::ParachainSystem,
-// 			ParachainInfo: asset_hub_polkadot_runtime::ParachainInfo,
-// 		},
-// 		pallets = {
-// 			PolkadotXcm: asset_hub_polkadot_runtime::PolkadotXcm,
-// 			Assets: asset_hub_polkadot_runtime::Assets,
-// 		}
-// 	},
-// 	pub struct AssetHubRococo {
-// 		genesis = asset_hub_polkadot::genesis(),
-// 		on_init = (),
-// 		runtime = {
-// 			Runtime: asset_hub_polkadot_runtime::Runtime,
-// 			RuntimeOrigin: asset_hub_polkadot_runtime::RuntimeOrigin,
-// 			RuntimeCall: asset_hub_polkadot_runtime::RuntimeCall,
-// 			RuntimeEvent: asset_hub_polkadot_runtime::RuntimeEvent,
-// 			XcmpMessageHandler: asset_hub_polkadot_runtime::XcmpQueue,
-// 			DmpMessageHandler: asset_hub_polkadot_runtime::DmpQueue,
-// 			LocationToAccountId: asset_hub_polkadot_runtime::xcm_config::LocationToAccountId,
-// 			System: asset_hub_polkadot_runtime::System,
-// 			Balances: asset_hub_polkadot_runtime::Balances,
-// 			ParachainSystem: asset_hub_polkadot_runtime::ParachainSystem,
-// 			ParachainInfo: asset_hub_polkadot_runtime::ParachainInfo,
-// 		},
-// 		pallets = {
-// 			PolkadotXcm: asset_hub_polkadot_runtime::PolkadotXcm,
-// 			Assets: asset_hub_polkadot_runtime::Assets,
-// 		}
-// 	}
-// );
-//
-// decl_test_networks!(
-// 	// Polkadot
-// 		pub struct PolkadotNet {
-// 		relay_chain = PolkadotMain,
-// 		parachains = vec![
-// 			AssetHubPolkadot,
-// 			VaneParachain,
-// 		],
-// 		bridge = ()
-// 	},
-//
-// 	// Rococo
-// 	pub struct RococoNet {
-// 		relay_chain = Rococo,
-// 		parachains = vec![
-// 			AssetHubRococo,
-// 			VaneRococo,
-// 		],
-// 		bridge = ()
-// 	}
-// );
+decl_test_parachains!(
+
+	pub struct VanePolkadot {
+		genesis = vane_parachain::genesis(),
+		on_init = {
+			AuraExt::on_initialize(1);
+		},
+		runtime = crate,
+		core = {
+			XcmpMessageHandler: XcmpQueue,
+			DmpMessageHandler: DmpQueue,
+			LocationToAccountId: crate::xcm_config::LocationToAccountId,
+			ParachainInfo: ParachainInfo,
+		},
+		pallets = {
+			PolkadotXcm: PolkadotXcm,
+			VaneAssets: VaneAssets,
+			Balances: Balances,
+			VaneXcmTransferSystem: VaneXcmTransferSystem,
+		}
+	
+	},
+	pub struct VaneRococo {
+		genesis = vane_parachain::genesis(),
+		on_init = {
+			AuraExt::on_initialize(1);
+		},
+		runtime = crate,
+		core = {
+			XcmpMessageHandler: XcmpQueue,
+			DmpMessageHandler: DmpQueue,
+			LocationToAccountId: crate::xcm_config::LocationToAccountId,
+			ParachainInfo: ParachainInfo,
+		},
+		pallets = {
+			PolkadotXcm: PolkadotXcm,
+			VaneAssets: VaneAssets,
+			Balances: Balances,
+			VaneXcmTransferSystem: VaneXcmTransferSystem,
+		}
+	},
+
+	// AssetHubs
+	pub struct AssetHubPolkadot {
+		genesis = asset_hub_polkadot::genesis(),
+		on_init = {
+			asset_hub_polkadot_runtime::AuraExt::on_initialize(1);
+		},
+		runtime = asset_hub_polkadot_runtime,
+		core = {
+			XcmpMessageHandler: asset_hub_polkadot_runtime::XcmpQueue,
+			DmpMessageHandler: asset_hub_polkadot_runtime::DmpQueue,
+			LocationToAccountId: asset_hub_polkadot_runtime::xcm_config::LocationToAccountId,
+			ParachainInfo: asset_hub_polkadot_runtime::ParachainInfo,
+		},
+		pallets = {
+			PolkadotXcm: asset_hub_polkadot_runtime::PolkadotXcm,
+			Assets: asset_hub_polkadot_runtime::Assets,
+			Balances: asset_hub_polkadot_runtime::Balances,
+		}
+	},
+
+	pub struct AssetHubRococo {
+		genesis = asset_hub_kusama::genesis(),
+		on_init = {
+			asset_hub_polkadot_runtime::AuraExt::on_initialize(1);
+		},
+		runtime = asset_hub_kusama_runtime,
+		core = {
+			XcmpMessageHandler: asset_hub_kusama_runtime::XcmpQueue,
+			DmpMessageHandler: asset_hub_kusama_runtime::DmpQueue,
+			LocationToAccountId: asset_hub_kusama_runtime::xcm_config::LocationToAccountId,
+			ParachainInfo: asset_hub_kusama_runtime::ParachainInfo,
+		},
+		pallets = {
+			PolkadotXcm: asset_hub_kusama_runtime::PolkadotXcm,
+			Assets: asset_hub_kusama_runtime::Assets,
+		}
+	},
+
+);
+
+
+
+decl_test_networks!(
+	// Polkadot
+		pub struct PolkadotNet {
+		relay_chain = Polkadot,
+		parachains = vec![
+			AssetHubPolkadot,
+			VanePolkadot,
+		],
+		bridge = ()
+	},
+
+	// Rococo
+	pub struct RococoNet {
+		relay_chain = Rococo,
+		parachains = vec![
+			AssetHubRococo,
+			VaneRococo,
+		],
+		bridge = ()
+	}
+);
 //
 //
 // static INIT: Once = Once::new();

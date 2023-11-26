@@ -6,8 +6,8 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-#[cfg(test)]
-mod xcm_sim_testing;
+// #[cfg(test)]
+// mod xcm_sim_testing;
 #[cfg(test)]
 mod xcm_eml_testing;
 
@@ -780,7 +780,7 @@ construct_runtime!(
 
 		// Vane Pallets
 
-		VaneXcmTransfer: vane_xcm_transfer_system = 100
+		VaneXcmTransferSystem: vane_xcm_transfer_system = 100
 
 	}
 );

@@ -196,7 +196,7 @@ pub fn parachain_config(para_id: ParaId, boot_nodes: Vec<String>) -> ParachainCh
 
 
 
-#[derive(Encode,Decode)]
+#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct RococoId(u32);
 
 fn calculate_sovereign_account<Pair>(
@@ -228,7 +228,7 @@ fn calculate_sovereign_account<Pair>(
 }
 
 
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum ConfigChain {
 	Tanssi,
 	Parachain
@@ -303,7 +303,7 @@ fn genesis_config(
 				polkadot_xcm: vane_tanssi_runtime::PolkadotXcmConfig::default(),
 				transaction_payment: Default::default(),
 
-				vane_xcm_transfer: vane_tanssi_runtime::VaneXcmTransferConfig {
+				vane_xcm_transfer_system: vane_tanssi_runtime::VaneXcmTransferSystemConfig {
 					para_account: Some(para_account)
 				}
 			};
@@ -335,7 +335,7 @@ fn genesis_config(
 
 				},
 
-				vane_xcm_transfer: vane_para_runtime::VaneXcmTransferConfig {
+				vane_xcm_transfer_system: vane_para_runtime::VaneXcmTransferSystemConfig {
 					para_account: Some(para_account)
 				},
 
