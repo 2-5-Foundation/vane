@@ -140,7 +140,7 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 
 	}.assimilate_storage(&mut t).unwrap();
 
-	vane_xcm::GenesisConfig::<Runtime> {
+	vane_xcm_transfer_system::GenesisConfig::<Runtime> {
 		para_account: Some(child_account_id(1)),
 	}.assimilate_storage(&mut t).unwrap();
 
@@ -204,6 +204,6 @@ mod tests {
 
 	#[test]
 	fn vane_remote_works(){
-
+		
 	}
 }
