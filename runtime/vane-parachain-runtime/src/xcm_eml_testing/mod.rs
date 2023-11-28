@@ -152,8 +152,7 @@ pub use vane_parachain::*;
 pub mod vane_parachain {
 	use super::*;
 	use crate::xcm_eml_testing::Storage;	use sp_core::crypto::Ss58Codec;
-	use vane_primitive::CurrencyId;
-	use vane_primitive::CurrencyId::DOT;
+	use vane_xcm_transfer_system::CurrencyId::*;
 	use crate::{EXISTENTIAL_DEPOSIT,Balance};
 	use crate::xcm_eml_testing::accounts::{ALICE, invulnerables, sudo_key};
 

@@ -27,7 +27,7 @@ use staging_xcm_executor::{
 use xcm_simulator::PhantomData;
 use assets_common::foreign_creators::ForeignCreators;
 
-use vane_primitive::{CurrencyId, MultiCurrencyAsset, MultiCurrencyConverter, VaneDerivedAssets, VaneForeignCreators};
+use vane_xcm_transfer_system::{CurrencyId, MultiCurrencyAsset, MultiCurrencyConverter, VaneDerivedAssets, VaneForeignCreators};
 use staging_xcm_executor::traits::MatchesFungible;
 use sp_runtime::traits::{CheckedConversion, Convert};
 
@@ -108,7 +108,7 @@ impl<CurrencyId, CurrencyIdConvert, Amount> MatchesFungible<Amount> for IsNative
 }
 
 
-pub type LocalAssetTransactor =  vane_primitive::VaneMultiCurrencyAdapter<
+pub type LocalAssetTransactor =  vane_xcm_transfer_system::VaneMultiCurrencyAdapter<
 	MultiCurrencyAsset<Runtime>,
 	(), // handler for unknown assets
 	IsNativeConcrete<CurrencyId, MultiCurrencyConverter<Runtime>>,
@@ -205,7 +205,7 @@ impl Config for XcmConfig {
 	type XcmSender = XcmRouter;
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = XcmOriginToCallOrigin;
-	type IsReserve = vane_primitive::VaneDerivedAssets;
+	type IsReserve = vane_xcm_transfer_system::VaneDerivedAssets;
 	type IsTeleporter = ();
 	type Aliasers = AliasForeignAccountId32<ParentPrefix>; // test for both Parent and AssetHub Prefix
 	type UniversalLocation = UniversalLocation;

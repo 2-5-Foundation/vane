@@ -22,6 +22,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use cumulus_pallet_parachain_system::ExpectParentIncluded;
 use frame_support::traits::Everything;
 use polkadot_parachain_primitives::primitives::Sibling;
 #[cfg(feature = "std")]
@@ -74,7 +75,7 @@ use {
 };
 
 pub mod xcm_config;
-pub use vane_primitive::{CurrencyId, VaneDerivedAssets, VaneForeignCreators};
+pub use vane_xcm_transfer_system::{CurrencyId, VaneDerivedAssets, VaneForeignCreators};
 use staging_xcm_executor::XcmExecutor;
 use staging_xcm::latest::prelude::*;
 mod weights;
@@ -411,6 +412,9 @@ parameter_types! {
     pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
 }
 
+
+
+
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type OnSystemEvent = ();
@@ -421,6 +425,10 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type XcmpMessageHandler = XcmpQueue;
 	type ReservedXcmpWeight = ReservedXcmpWeight;
 	type CheckAssociatedRelayNumber = RelayNumberStrictlyIncreases;
+
+
+	type ConsensusHook = ExpectParentIncluded;
+	
 }
 
 impl parachain_info::Config for Runtime {}
@@ -561,7 +569,7 @@ construct_runtime!(
         PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config<T>} = 73,
 
 		// VANE
-		VaneXcmTransfer: vane_xcm_transfer_system = 100
+		VaneXcmTransferSystem: vane_xcm_transfer_system = 100
 
     }
 );

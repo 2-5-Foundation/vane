@@ -68,7 +68,7 @@ decl_test_network! {
 
 
 use staging_xcm_executor::traits::ConvertLocation;
-use vane_primitive::CurrencyId;
+use vane_xcm_transfer_system::CurrencyId;
 
 pub fn parent_account_id() -> parachain::AccountId {
 	let location = (Parent,);

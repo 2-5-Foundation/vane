@@ -15,7 +15,7 @@ use polkadot_runtime_common::impls::ToAuthor;
 use staging_xcm::latest::prelude::*;
 use staging_xcm_builder::{AccountId32Aliases, AliasForeignAccountId32, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic};
 use staging_xcm_executor::XcmExecutor;
-use vane_primitive::{CurrencyId, MultiCurrencyAsset, MultiCurrencyConverter};
+use vane_xcm_transfer_system::{CurrencyId, MultiCurrencyAsset, MultiCurrencyConverter};
 //use orml_xcm_support::IsNativeConcrete;
 use sp_runtime::traits::{CheckedConversion, Convert};
 use staging_xcm_executor::traits::MatchesFungible;
@@ -57,7 +57,7 @@ impl<CurrencyId, CurrencyIdConvert, Amount> MatchesFungible<Amount> for IsNative
 }
 
 /// Means for transacting assets on this chain.
-pub type LocalAssetTransactor =  vane_primitive::VaneMultiCurrencyAdapter<
+pub type LocalAssetTransactor =  vane_xcm_transfer_system::VaneMultiCurrencyAdapter<
 	MultiCurrencyAsset<Runtime>,
 	(), // handler for unknown assets
 	IsNativeConcrete<CurrencyId, MultiCurrencyConverter<Runtime>>,
@@ -150,7 +150,7 @@ impl staging_xcm_executor::Config for XcmConfig {
 	// How to withdraw and deposit an asset.
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = XcmOriginToCallOrigin;
-	type IsReserve = vane_primitive::VaneDerivedAssets; // Custom Asset matcher
+	type IsReserve = vane_xcm_transfer_system::VaneDerivedAssets; // Custom Asset matcher
 	type IsTeleporter = ();
 	type Aliasers = AliasForeignAccountId32<ParentPrefix>;
 	// Teleporting is disabled.

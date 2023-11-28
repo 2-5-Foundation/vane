@@ -21,7 +21,5 @@
 # polkadot-launch logs
 *.log
 
-**/tmp/
-**/tmp1
 
 /vane-zombie

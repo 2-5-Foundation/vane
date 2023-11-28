@@ -2,7 +2,6 @@ use cumulus_primitives_core::ParaId;
 
 use vane_tanssi_runtime::{AccountId, Signature};
 use vane_para_runtime::{AccountId as VaneParaRuntimeAcountId, Signature as VaneParaRuntimeSignature, EXISTENTIAL_DEPOSIT, AuraId};
-
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -10,6 +9,7 @@ use sp_core::{sr25519, sr25519::Pair as PairType, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use staging_xcm::prelude::*;
 use sc_network::config::MultiaddrWithPeerId;
+use sp_core::{MaxEncodedLen,RuntimeDebug};
 
 use codec::{Encode,Decode};
 use sp_core::{crypto::{Ss58AddressFormatRegistry, Ss58Codec}};
@@ -196,7 +196,7 @@ pub fn parachain_config(para_id: ParaId, boot_nodes: Vec<String>) -> ParachainCh
 
 
 
-#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen)]
 pub struct RococoId(u32);
 
 fn calculate_sovereign_account<Pair>(
@@ -228,7 +228,7 @@ fn calculate_sovereign_account<Pair>(
 }
 
 
-#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen)]
 pub enum ConfigChain {
 	Tanssi,
 	Parachain

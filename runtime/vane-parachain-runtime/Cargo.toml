@@ -26,7 +26,7 @@ smallvec = "1.10.0"
 #vane-order = { version = "1.0.0-dev", default-features =  false, path = "../../pallets/vane-order" }
 #vane-payment = { version = "1.0.0-dev", default-features = false, path = "../../pallets/vane-payment"}
 vane-xcm-transfer-system = {version = "1.0.0-dev", default-features = false,  path ="../../pallets/vane-xcm-transfer-system"}
-vane-primitive = { version = "1.0.0-dev", default-features = false, path ="../../primitive/vane-primitive"}
+# vane-primitive = { version = "1.0.0-dev", default-features = false, path ="../../primitive/vane-primitive"}
 
 
 
@@ -98,7 +98,7 @@ rococo-runtime								= { workspace = true }
 polkadot-runtime							= { workspace = true }
 asset-hub-polkadot-runtime 					= { workspace = true }
 asset-hub-kusama-runtime 					= { workspace = true }
-
+polkadot-runtime-parachains					= { workspace = true }
 
 # --**-----
 staging-xcm 								= { workspace = true }
@@ -151,11 +151,8 @@ std = [
 	"polkadot-parachain-primitives/std",
 	"polkadot-runtime-common/std",
 	# Vane pallets
-#	"vane-register/std",
-#	"vane-order/std",
-#	"vane-payment/std",
 	"vane-xcm-transfer-system/std",
-	"vane-primitive/std",
+	# "vane-primitive/std",
 
 
 

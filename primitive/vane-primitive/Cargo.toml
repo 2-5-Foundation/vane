@@ -25,6 +25,7 @@ sp-runtime 											= { workspace = true }
 sp-core 											= { workspace = true}
 staging-xcm-executor		 						= { workspace = true }
 serde 												= { workspace = true }
+sp-io = {  workspace = true }
 
 
 # ORML
@@ -49,6 +50,7 @@ std = [
 	"sp-core/std",
 	"staging-xcm-executor/std",
 	"serde/std",
+	"sp-io/std"
 
 
 	# ORML

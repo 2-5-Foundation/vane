@@ -6,8 +6,8 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-// #[cfg(test)]
-// mod xcm_sim_testing;
+#[cfg(test)]
+mod xcm_sim_testing;
 #[cfg(test)]
 mod xcm_eml_testing;
 
@@ -530,7 +530,7 @@ parameter_types! {
 use sp_core::ConstBool;
 use sp_runtime::traits::AccountIdConversion;
 use staging_xcm_executor::traits::ConvertLocation;
-pub use vane_primitive::{CurrencyId, VaneDerivedAssets, VaneForeignCreators};
+pub use vane_xcm_transfer_system::{CurrencyId, VaneDerivedAssets, VaneForeignCreators};
 
 
 impl pallet_aura::Config for Runtime {
@@ -653,93 +653,6 @@ parameter_types! {
 	pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
-
-
-
-
-pub struct TokenIdConvert;
-// impl Convert<u32, Option<MultiLocation>> for TokenIdConvert {
-// 	fn convert(id: u32) -> Option<MultiLocation> {
-// 		VaneAssetRegistry::<Runtime>::multilocation(&id).unwrap_or(None)
-// 	}
-// }
-//
-// impl Convert<MultiLocation, Option<u32>> for TokenIdConvert {
-// 	fn convert(location: MultiLocation) -> Option<u32> {
-// 		match location {
-//
-// 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
-// 				if para_id == u32::from(ParachainInfo::parachain_id()) =>
-// 				None, // No Native Token
-// 			_ => VaneAssetRegistry::<Runtime>::location_to_asset_id(location.clone()),
-// 		}
-// 	}
-// }
-
-// impl Convert<MultiAsset, Option<u32>> for TokenIdConvert {
-// 	fn convert(asset: MultiAsset) -> Option<u32> {
-// 		if let MultiAsset { id: Concrete(location), .. } = asset {
-// 			Self::convert(location)
-// 		} else {
-// 			None
-// 		}
-// 	}
-// }
-
-// pub struct AccountIdToMultiLocation;
-// impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
-// 	fn convert(account: AccountId) -> MultiLocation {
-// 		X1(AccountId32 { network: None, id: account.into() }).into()
-// 	}
-// }
-
-// parameter_types! {
-// 	pub enum CurrencyId {
-// 	DOT,
-// 	USDT,
-// 	USDC
-//  }
-// }
-
-
-// orml_traits::parameter_type_with_key! {
-//     pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
-//         match currency_id {
-//             1 => EXISTENTIAL_DEPOST,
-//             2|3 => 1u128,
-//         }
-//     }
-// }
-
-// pub struct CurrencyHooks<T>(PhantomData<T>);
-// impl<T:frame_system::Config> MutationHooks<T::AccountId, T::CurrencyId, T::Balance> for CurrencyHooks<T>
-// 	where
-// 		T::AccountId: From<AccountId32> + Into<AccountId32>,
-// 		T::CurrencyId: From<u32> + Into<u32>,
-// {
-// 	type OnDust = ();
-// 	type OnSlash =();
-// 	type PreDeposit = ();
-// 	type PostDeposit = ();
-// 	type PreTransfer = ();
-// 	type PostTransfer = ();
-// 	type OnNewTokenAccount = ();
-// 	type OnKilledTokenAccount = ();
-// }
-
-// impl orml_tokens::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type Balance = Balance;
-// 	type Amount = i128;
-// 	type CurrencyId = u8;
-// 	type WeightInfo = ();
-// 	type ExistentialDeposits = ExistentialDeposits;
-// 	type CurrencyHooks = CurrencyHooks<Runtime>;
-// 	type MaxLocks = ();
-// 	type MaxReserves = ();
-// 	type ReserveIdentifier = ();
-// 	type DustRemovalWhitelist = ();
-// }
 
 
 
