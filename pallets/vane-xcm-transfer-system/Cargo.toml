@@ -14,26 +14,25 @@ codec = { package = "parity-scale-codec", version = "3.2.2", default-features = 
 ] }
 scale-info = { version = "2.9.0", default-features = false, features = ["derive"] }
 frame-benchmarking = { version = "4.0.0-dev", default-features = false, optional = true, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v1.0.0" }
-frame-support = { workspace = true }
-frame-system = { workspace = true }
-sp-runtime = {  workspace = true }
-pallet-assets = { workspace = true }
-pallet-balances = { workspace = true }
-sp-std = { workspace = true }
-sp-io = {  workspace = true }
+frame-support 										= { workspace = true }
+frame-system 										= { workspace = true }
+sp-runtime 											= { workspace = true }
+pallet-assets 										= { workspace = true }
+pallet-balances 									= { workspace = true }
+sp-std 												= { workspace = true }
+sp-io 												= { workspace = true }
+sp-core 											= { workspace = true}
+staging-xcm-executor		 						= { workspace = true }
+serde 												= { workspace = true }
 
 
-# Orml pallet
-#orml-tokens = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "master" }
-#orml-xtokens = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "master" }
-#orml-traits = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "polkadot-v1.0.0" }
-#orml-xcm-support = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "polkadot-v1.0.0" }
 
 #XCM Pallet
-pallet-xcm = { workspace = true }
-staging-xcm = { workspace = true }
+pallet-xcm 											= { workspace = true }
+staging-xcm 										= { workspace = true }
+
 #Local Pallet
-#vane-primitive = { version = "1.0.0-dev", default-features = false, path = "../../primitive/vane-primitive"}
+vane-primitive = { version = "1.0.0-dev", default-features = false, path = "../../primitive/vane-primitive"}
 log = { version = "0.4.17", default-features = false }
 
 #[dev-dependencies]
@@ -56,15 +55,14 @@ std = [
 	"pallet-assets/std",
     "sp-std/std",
 	"sp-io/std",
+	"sp-core/std",
 	"sp-runtime/std",
 	"log/std",
+	"serde/std",
     #Custom pallets
-#	"orml-tokens/std",
-#	"orml-xtokens/std",
-#	"orml-traits/std",
-#	"orml-xcm-support/std",
-#	"vane-primitive/std",
+	"vane-primitive/std",
 	#----------------
 	"pallet-xcm/std",
 	"staging-xcm/std",
+	"staging-xcm-executor/std"
 ]

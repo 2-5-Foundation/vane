@@ -4,13 +4,13 @@
 pub use pallet::*;
 pub mod helper;
 
+pub use helper::*;
 use log;
 use frame_support::Blake2_128;
 use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::*;
 use pallet_xcm;
 use sp_runtime::traits::{StaticLookup};
-//use vane_primitive::CurrencyId;
 use sp_std::vec::Vec;
 use frame_support::parameter_types;
 
