@@ -1,38 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_system::AccountInfo;
-use sp_std::fmt::Debug;
-use sp_std::result;
-use codec::{FullCodec, MaxEncodedLen};
+use codec::{ MaxEncodedLen};
 use codec::{Decode, Encode};
-use frame_support::dispatch::{RawOrigin};
-use frame_support::pallet_prelude::*;
-use frame_support::sp_runtime::traits::StaticLookup;
-use frame_support::traits::{ContainsPair, EnsureOriginWithArg, Everything, OriginTrait, UnfilteredDispatchable};
-use frame_support::traits::fungibles::{Balanced, Inspect};
-use frame_support::traits::tokens::{Fortitude, Precision, Preservation, WithdrawConsequence};
-use scale_info::TypeInfo;
-use staging_xcm::latest::prelude::*;
-use sp_io::hashing::blake2_256;
-
-//
-// pub use primitive_mod::*;
-// #[frame_support::pallet]
-// pub mod primitive_mod {
-// 	use super::*;
-// 	#[pallet::config]
-// 	pub trait Config: frame_system::Config + pallet_assets::Config {}
-//
-// 	#[pallet::pallet]
-// 	pub struct Pallet<T>(sp_std::marker::PhantomData<T>);
-//
-// 	pub type Balance<T> = <T as pallet_assets::Config>::Balance;
-//
-//
-//
-//
-// 	}
-// }
+use sp_core::{crypto::{Ss58AddressFormatRegistry, Ss58Codec}};
+use frame_support::{pallet_prelude::*, parameter_types};
+use sp_std::boxed::Box;
+use sp_runtime::{MultiSigner};
+use scale_info::prelude::format;
+use scale_info::prelude::string::String;
 
 
 pub trait OrderTrait {
@@ -41,20 +16,8 @@ pub trait OrderTrait {
 	//fn calculate_delivery_time()
 }
 
-// OrType Storage Key primitive
-// A type of storage_map whereby 2 keys store one value
-// Accessing the value only require one key which is registered.
 
 
-// For Multi Currency usage
-//use orml_traits::{GetByKey, parameter_type_with_key};
-use pallet_assets::{AssetDetails, Config};
-use sp_core::serde::{Deserialize, Serialize};
-use sp_runtime::traits::{AtLeast32BitUnsigned, Convert, Zero, TrailingZeroInput};
-use sp_runtime::SaturatedConversion;
-use staging_xcm_executor::Assets;
-use staging_xcm_executor::traits::{ConvertLocation, Error, MatchesFungible, TransactAsset};
-use pallet_xcm::{EnsureXcm, Origin as XcmOrigin};
 
 
 //orml re written traits & macros and types
@@ -94,3 +57,38 @@ macro_rules! parameter_type_with_key {
 		}
 	};
 }
+
+
+// parameter_types! {
+// 	pub const MAX_BYTES: u8 = 200;
+// }
+
+// #[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen)]
+// pub struct RococoId(u32);
+
+// pub fn calculate_sovereign_account<Pair>(
+// 	para_id: u32,
+// ) -> Result<String, ()>
+// 	where
+// 		Pair: sp_core::Pair,
+// 		Pair::Public: Into<MultiSigner>,
+// {
+// 	// Scale encoded para_id
+// 	let id = RococoId(2000).encode_hex();
+
+// 	// Prefix para or sibl
+// 	let prefix = "para".encode_hex();
+
+// 	// Join both strings and the 0x at the beginning
+// 	let encoded_key = "0x".to_owned() + &prefix + &id;
+
+// 	// Fill the rest with 0s
+// 	let public_str = format!("{:0<width$}", encoded_key, width = (64 + 2) as usize);
+
+// 	// Convert hex public key to ss58 address
+// 	let public = array_bytes::hex2bytes(&public_str).expect("Failed to convert hex to bytes");
+// 	let public_key = Pair::Public::try_from(&public)
+// 		.map_err(|_| "Failed to construct public key from given hex").unwrap();
+
+// 	Ok(public_key.to_ss58check_with_version(Ss58AddressFormatRegistry::SubstrateAccount.into()))
+// }

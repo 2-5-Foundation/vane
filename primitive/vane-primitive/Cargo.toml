@@ -28,6 +28,7 @@ serde 												= { workspace = true }
 sp-io = {  workspace = true }
 
 
+
 # ORML
 #orml-traits = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "polkadot-v1.1.0" }
 #orml-xcm-support = { version ="0.4.1-dev", default-features = false, git = "https://github.com/open-web3-stack/open-runtime-module-library.git", branch = "polkadot-v1.1.0" }
@@ -50,7 +51,7 @@ std = [
 	"sp-core/std",
 	"staging-xcm-executor/std",
 	"serde/std",
-	"sp-io/std"
+	"sp-io/std",
 
 
 	# ORML

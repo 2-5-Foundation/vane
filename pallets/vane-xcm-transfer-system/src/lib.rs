@@ -149,7 +149,8 @@ mod pallet{
 
 		MultiSigCallFailed,
 
-		TxnReceiptUnavailable,
+		TxnReceiptUnavailable
+		
 	}
 
 	#[pallet::event]
@@ -164,6 +165,13 @@ mod pallet{
 			time: BlockNumberFor<T>,
 			amount: u128,
 			multi_id: AccountIdLookupOf<T>
+			// TXN HASH for Dot side txn_hash: T::Hash,
+		},
+		XcmTokenTransferInitiated {
+			time: BlockNumberFor<T>,
+			amount: u128,
+			multi_id: T::AccountId,
+			token: T::AssetIdParameter
 			// TXN HASH for Dot side txn_hash: T::Hash,
 		},
 		PayerAddressConfirmedXcm {
@@ -184,55 +192,56 @@ mod pallet{
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T>{
-		#[pallet::call_index(0)]
-		#[pallet::weight(10)]
-		pub fn vane_transfer(
-			origin: OriginFor<T>,
-			payee: AccountIdLookupOf<T>,
-			amount: u128, // Fungibility
-			currency: Token,
-			asset_id: T::AssetIdParameter
 
-		) -> DispatchResult{
-			// log the origin
+		// #[pallet::call_index(0)]
+		// #[pallet::weight(10)]
+		// pub fn vane_transfer(
+		// 	origin: OriginFor<T>,
+		// 	payee: AccountIdLookupOf<T>,
+		// 	amount: u128, // Fungibility
+		// 	currency: Token,
+		// 	asset_id: T::AssetIdParameter
 
-			let caller = ensure_signed(origin.clone())?;
-			log::info!(
-				target: "",
-				" Caller {:?}",
-				caller,
-			);
+		// ) -> DispatchResult{
+		// 	// log the origin
+
+		// 	let caller = ensure_signed(origin.clone())?;
+		// 	log::info!(
+		// 		target: "",
+		// 		" Caller {:?}",
+		// 		caller,
+		// 	);
 
 
-			let payee_acc = T::Lookup::lookup(payee.clone())?;
+		// 	let payee_acc = T::Lookup::lookup(payee.clone())?;
 
-			//ensure!( caller_acc == payer, Error::<T>::NotTheCaller);
-			// Construct a Multisig Account
+		// 	//ensure!( caller_acc == payer, Error::<T>::NotTheCaller);
+		// 	// Construct a Multisig Account
 
-			let multi_id = Self::vane_multisig_record(caller, payee_acc, amount, currency.clone())?;
+		// 	let multi_id = Self::vane_multisig_record(caller, payee_acc, amount, currency.clone())?;
 
-			// Check the Token type
+		// 	// Check the Token type
 
-			match currency {
-				Token::DOT => {
+		// 	match currency {
+		// 		Token::DOT => {
 
-					let multi_id_acc = T::Lookup::unlookup(multi_id.clone());
-					let asset = asset_id;
+		// 			let multi_id_acc = T::Lookup::unlookup(multi_id.clone());
+		// 			let asset = asset_id;
 
-					Self::vane_xcm_transfer_dot(amount,multi_id_acc,multi_id,asset)?;
-				},
-				Token::USDT => {
-					Err(Error::<T>::NotSupportedYet)?
-				}
-			};
+		// 			Self::vane_xcm_transfer_dot(amount,multi_id_acc,multi_id,asset)?;
+		// 		},
+		// 		Token::USDT => {
+		// 			Err(Error::<T>::NotSupportedYet)?
+		// 		}
+		// 	};
 
-			Ok(())
-		}
+		// 	Ok(())
+		// }
 
 
 		//Vane Transfer Confirmation
 
-		#[pallet::call_index(1)]
+		#[pallet::call_index(0)]
 		#[pallet::weight(10)]
 		pub fn vane_confirm(
 			origin: OriginFor<T>,

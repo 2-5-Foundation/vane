@@ -114,7 +114,6 @@ pub fn tanssi_config(para_id: ParaId, boot_nodes: Vec<String>) -> TanssiChainSpe
 		move || {
 			genesis_config(
 				ConfigChain::Tanssi,
-				default_funded_accounts.clone(),
 				para_id,
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				vec![] // No invulnerables as tanssi-runtime do not use pallet collator
@@ -161,7 +160,6 @@ pub fn parachain_config(para_id: ParaId, boot_nodes: Vec<String>) -> ParachainCh
 		move || {
 			genesis_config(
 				ConfigChain::Parachain,
-				default_funded_accounts.clone(),
 				para_id,
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				vec![
@@ -238,15 +236,15 @@ pub enum ConfigChain {
 
 fn genesis_config(
 	chain: ConfigChain,
-	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
 	root_key: AccountId,
 	invulnerables: Vec<(AccountId, AuraId)>
 
 ) -> (Option<vane_tanssi_runtime::RuntimeGenesisConfig>, Option<vane_para_runtime::RuntimeGenesisConfig>) {
 
+
 	let alice = get_from_seed::<sr25519::Public>("Alice");
-	let bob = get_from_seed::<sr25519::Public>("Bob");
+
 
 	let v_dot = "vDOT".as_bytes().to_vec();
 	let _v_usdt = "vUSDT".as_bytes().to_vec();
@@ -269,11 +267,10 @@ fn genesis_config(
 					..Default::default()
 				},
 				balances: vane_tanssi_runtime::BalancesConfig {
-					balances: endowed_accounts
-						.iter()
-						.cloned()
-						.map(|k| (k, 10000000000))
-						.collect(),
+					balances: vec![
+						(para_account.clone(),100000000000),
+						(alice.into(),100000000)
+						]
 				},
 				parachain_info: vane_tanssi_runtime::ParachainInfoConfig {
 					parachain_id: id,
@@ -322,7 +319,10 @@ fn genesis_config(
 					..Default::default()
 				},
 				balances: vane_para_runtime::BalancesConfig {
-					balances: endowed_accounts.iter().cloned().map(|k| (k, 10000000000)).collect(),
+					balances: vec![
+						(para_account.clone(),100000000000),
+						(alice.into(),100000000)
+						]
 				},
 
 				vane_assets: vane_para_runtime::VaneAssetsConfig {
