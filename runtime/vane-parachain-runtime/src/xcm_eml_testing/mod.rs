@@ -398,3 +398,34 @@ decl_test_networks!(
 //
 // 	}
 // }
+
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+
+	// This test check that the Xcm Reserve Transfered Dot token from Relay Chain being deposited to the multi_id form between Alice & Bob
+	// And all the necessary storage entities are taking place.
+	// This functionality of directly depositing into multi id can be found in the implemented AssetTransactor::transfer.
+	// AssetTransactor is responsible for handling token behaviour inside destination chain ( Note: check in staging_xcm_executor)
+	#[test]
+	fn transfer_dot_from_relay_to_vane_deposits_into_multi_id_works(){
+
+	}
+
+
+	// This test checks transaction lifecycle from Relay Chain to Vane and back to Relay Chain with confirmations in place and fees token being deposited
+	#[test]
+	fn full_transaction_execution_and_confirmation_works(){
+
+	}
+
+
+	// This test checks reverting txn, sends xcm message to refund the tokens being held in vane soverign account.
+	#[test]
+	fn reverting_works(){
+
+	}
+}
+

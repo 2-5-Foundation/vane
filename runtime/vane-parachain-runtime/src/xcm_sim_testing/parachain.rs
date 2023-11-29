@@ -457,6 +457,14 @@ impl pallet_assets::Config for Runtime {
 	type BenchmarkHelper = xcm_config::XcmBenchmarkHelper;
 }
 
+impl pallet_utility::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type PalletsOrigin = OriginCaller;
+
+	type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
+}
+
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
 type Block = frame_system::mocking::MockBlock<Runtime>;
@@ -467,6 +475,7 @@ construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		Utility: pallet_utility,
 		MsgQueue: mock_msg_queue::{Pallet, Storage, Event<T>},
 		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin},
 		VaneXcmTransfer: vane_xcm_transfer_system = 9,
