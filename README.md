@@ -6,7 +6,7 @@
 
 Bringing safety into crypto transactions and a product on Polkadot & Ethereum enabling entrepreneurs expand their social commerce business by leveraging trust.
 
-Note: *vane-network is built to work*
+Note: *vane-network is built to work without a native token to purchase*
 
 - **vane-network does not and will not have a native token to pruchase**, with our creative and user experience in mind solution enable vane to act as an extension safety and product layer on top of Polkadot & Ethereum (*soon*) & Bitcoin (*soon*). **Thus allowing users to continue using their favorite network & tokens and get vane features out of the box**.
 
