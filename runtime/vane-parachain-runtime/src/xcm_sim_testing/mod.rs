@@ -9,6 +9,8 @@ use sp_runtime::BuildStorage;
 use staging_xcm::prelude::*;
 use xcm_simulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain, TestExt};
 use std::sync::Once;
+use frame_support::assert_ok;
+use xcm_emulator::bx;
 
 
 pub const ALICE: sp_runtime::AccountId32 = sp_runtime::AccountId32::new([0u8; 32]);
@@ -25,8 +27,8 @@ fn init_tracing() {
 	INIT.call_once(|| {
 		// Add test tracing (from sp_tracing::init_for_tests()) but filtering for xcm logs only
 		let _ = tracing_subscriber::fmt()
-			//.with_max_level(tracing::Level::TRACE)
-			//.with_env_filter("xcm=trace,system::events=trace") // Comment out this line to see all traces
+			.with_max_level(tracing::Level::TRACE)
+			.with_env_filter("xcm=trace,system::events=trace") // Comment out this line to see all traces
 			.with_test_writer()
 			.init();
 	});
@@ -115,7 +117,7 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
 			// (ALICE,INITIAL_BALANCE),
-			// (parent_account_id(), INITIAL_BALANCE)
+			(child_account_id(2000), INITIAL_BALANCE)
 		],
 
 	}.assimilate_storage(&mut t).unwrap();
@@ -136,13 +138,13 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 	pallet_assets::GenesisConfig::<Runtime> {
 
 		metadata: vec![(CurrencyId::DOT,asset1_name.clone(),asset1_name,10)],
-		assets: vec![(CurrencyId::DOT,child_account_id(1),true,1)],
-		accounts: vec![(CurrencyId::DOT,child_account_id(1),0)]
+		assets: vec![(CurrencyId::DOT,child_account_id(2000),true,1)],
+		accounts: vec![(CurrencyId::DOT,child_account_id(2000),0)]
 
 	}.assimilate_storage(&mut t).unwrap();
 
 	vane_xcm_transfer_system::GenesisConfig::<Runtime> {
-		para_account: Some(child_account_id(1)),
+		para_account: Some(child_account_id(2000)),
 	}.assimilate_storage(&mut t).unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
@@ -164,9 +166,9 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
-			(ALICE, 100_000),
-			(child_account_id(1), 1000),
-
+			(ALICE, 100_000_000),
+			(child_account_id(2000), 10),
+ 
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -184,19 +186,15 @@ pub type RelayChainPalletXcm = pallet_xcm::Pallet<relay_chain::Runtime>;
 pub type VanePalletXcm = pallet_xcm::Pallet<parachain::Runtime>;
 pub type VanePalletAsset = pallet_assets::Pallet<parachain::Runtime>;
 pub type VanePalletBalances = pallet_balances::Pallet<parachain::Runtime>;
-pub type VanePalletVaneXcmTransferSystem = vane_xcm_transfer_system::Pallet<parachain::Runtime>;
+pub type VaneXcmTransferSystem = vane_xcm_transfer_system::Pallet<parachain::Runtime>;
+pub type FrameSystem  = frame_system::Pallet<parachain::Runtime>;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+
+use super::*;
 
 
-	use frame_support::{assert_ok};
-	use frame_support::traits::fungibles::Inspect;
-	use sp_runtime::traits::Dispatchable;
-	use staging_xcm::v3::OriginKind::{Native, SovereignAccount};
-	use xcm_emulator::bx;
-	use xcm_simulator::TestExt;
 
 	// Helper function for forming buy execution message
 	fn buy_execution<C>(fees: impl Into<MultiAsset>) -> Instruction<C> {
@@ -211,6 +209,112 @@ mod tests {
 	// AssetTransactor is responsible for handling token behaviour inside destination chain ( Note: check in staging_xcm_executor)
 	#[test]
 	fn transfer_dot_from_relay_to_vane_deposits_into_multi_id_works(){
+
+		init_tracing();
+
+		MockNet::reset();
+
+		let amount = 100_000u128;
+		let asset_amount = 1000u128;
+
+		Relay::execute_with(||{
+
+			// Send Xcm reserve Transfer with dest = para 1(vane) from Alice account to Bob
+			let call = parachain::RuntimeCall::VaneXcmTransfer(vane_xcm_transfer_system::Call::tester {  });
+			let inner_msg = Xcm::<()>(vec![
+				Transact { origin_kind: OriginKind::SovereignAccount, require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024), call:call.encode().into() }
+			]);
+
+			let message = Xcm::<()>(vec![
+				WithdrawAsset((Here, amount).into()),
+				buy_execution((Here,amount)),
+				DepositReserveAsset { assets: All.into(), dest: AccountId32 { network: None, id: BOB.into() }.into(), xcm: inner_msg }
+			]);
+
+			let inner_asset_messages = Xcm::<()>(
+				vec![
+					
+					buy_execution((Here, amount)),
+					DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: BOB.into() }.into() }
+					//TransferAsset { assets: (MultiAsset::from(10::1)), beneficiary: AccountId32 { network: None, id: BOB.into() }.into()  }
+				]
+			);
+
+			let asset_message = Xcm::<relay_chain::RuntimeCall>(vec![
+				TransferReserveAsset { 
+					assets: (Here, amount).into(),
+					dest: (Parachain(2000).into()),
+					xcm: inner_asset_messages },
+				
+			]);
+
+			// assert_ok!(
+			// 	relay_chain::XcmPallet::send(
+			// 		relay_chain::RuntimeOrigin::signed(ALICE),
+			// 		bx!(Parachain(2000).into()),
+			// 		bx!(VersionedXcm::V3(message))
+			// 	)
+			//
+			// );
+
+			// Normal ReserveAssetTransfer
+			// assert_ok!(
+			// 	relay_chain::XcmPallet::reserve_transfer_assets(
+			// 		relay_chain::RuntimeOrigin::signed(ALICE),
+			// 		bx!(Parachain(2000).into()),
+			// 		bx!(AccountId32 { network: None, id: BOB.into() }.into()),
+			// 		bx!((Here, amount).into()),
+			// 		0
+			// 	)
+			// );
+
+			// assert_ok!(
+			// 	relay_chain::XcmPallet::send(
+			// 		relay_chain::RuntimeOrigin::signed(ALICE),
+			// 		bx!(Parachain(2000).into()),
+			// 		bx!(VersionedXcm::V3(asset_message))
+			// 	)
+			// );
+
+			assert_ok!(
+				relay_chain::XcmPallet::execute(
+					relay_chain::RuntimeOrigin::signed(ALICE),
+					bx!(VersionedXcm::V3(asset_message)),
+					Weight::from_parts(1_000_000_000,1024*1024)
+				)
+			);
+
+			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
+
+			// Check the vane soverign account
+			// assert_eq!(
+			// 	RelayChainPalletBalances::free_balance(child_account_id(2000)),
+			// 	amount
+			// )
+
+		});
+
+		// Emit Vane parachain events
+		Vane::execute_with(||{
+
+			//assert_ok!(VaneXcmTransferSystem::tester(parachain::RuntimeOrigin::signed(ALICE)));
+
+			parachain::System::events().iter().for_each(|e| println!("{:#?}",e));
+			// Check the multi_id created account in pallet asset
+			// assert_eq!(
+			// 	VanePalletAsset::total_supply(CurrencyId::DOT),
+			// 	100000
+			// );
+
+			assert_eq!(
+				VanePalletAsset::balance(CurrencyId::DOT, BOB),
+				amount
+			);
+
+			// let txn_receipt = VaneXcmTransferSystem::get_payer_txn_receipt(ALICE,BOB);
+			// println!("{:?}",txn_receipt)
+
+		});
 
 	}
 

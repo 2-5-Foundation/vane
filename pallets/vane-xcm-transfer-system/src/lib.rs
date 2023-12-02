@@ -74,6 +74,7 @@ mod pallet{
 
 
 	#[pallet::storage]
+	#[pallet::getter(fn get_payer_txn_receipt)]
 	pub type PayerTxnReceipt<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -87,6 +88,7 @@ mod pallet{
 	// This is used to notify the payee as their is new pending transaction which needs confirmation
 	#[pallet::storage]
 	#[pallet::unbounded]
+	#[pallet::getter(fn get_payee_txn_receipt)]
 	pub type PayeeTxnReceipt<T: Config> =
 	StorageMap<_, Blake2_128Concat, T::AccountId, Vec<TxnReceipt<T>>, ValueQuery>;
 
@@ -94,9 +96,7 @@ mod pallet{
 	pub type MultiSigToPayee<T: Config> = StorageMap<_,Blake2_128,T::AccountId,T::AccountId>;
 
 	#[pallet::storage]
-	pub type TestStorage<T: Config> = StorageMap<_,Blake2_128, T::AccountId, u32,ValueQuery>;
-
-	#[pallet::storage]
+	#[pallet::getter(fn get_para_account)]
 	pub type ParaAccount<T: Config> = StorageValue<_,T::AccountId>;
 
 
@@ -346,17 +346,13 @@ mod pallet{
 			Ok(())
 		}
 
-
-
-	}
-
-	impl<T: Config> Pallet<T>{
-
-		pub fn read_payer_receipt(origin: OriginFor<T>,payee: T:: AccountId) -> Result<TxnReceipt<T>, DispatchError>{
-			let payer = ensure_signed(origin)?;
-			let receipt = PayerTxnReceipt::<T>::get(payer,payee).ok_or(Error::<T>::ReceiptNotFound)?;
-			Ok(receipt)
+		#[pallet::call_index(1)]
+		#[pallet::weight(10)]
+		pub fn tester(origin: OriginFor<T>) -> DispatchResult {
+			Self::deposit_event(Event::MessageTransferedToPolkadot);
+			Ok(())
 		}
+
 
 	}
 

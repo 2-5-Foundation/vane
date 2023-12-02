@@ -40,9 +40,8 @@ use sp_std::ops::{Mul, Sub};
 	use sp_runtime::traits::{TrailingZeroInput};
     use staging_xcm::{
         v3::{
-            Xcm, WeightLimit,
-        },
-
+            Xcm, WeightLimit, NetworkId::Polkadot, Junctions, Junction,
+        }
     };
     use sp_std::{vec::Vec,vec};
 	use staging_xcm::latest::Parent;
@@ -320,7 +319,7 @@ use sp_std::ops::{Mul, Sub};
 
 		/// Add `amount` to the balance of `who` under `currency_id` and increase
 		/// total issuance.
-		fn deposit(currency_id: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> DispatchResult;
+		fn deposit(currency_id: Self::CurrencyId, receiver: &AccountId, amount: Self::Balance) -> DispatchResult;
 
 		/// Remove `amount` from the balance of `who` under `currency_id` and reduce
 		/// total issuance.
@@ -402,14 +401,16 @@ use sp_std::ops::{Mul, Sub};
 			//DepositFailureHandler,
 		>
 		{
-			fn deposit_asset(asset: &MultiAsset, location: &MultiLocation, _context: &XcmContext) -> staging_xcm::v3::Result {
+			fn deposit_asset(asset: &MultiAsset, location: &MultiLocation, context: &XcmContext) -> staging_xcm::v3::Result {
+				let sender = context.origin;
+				
 				match (
 					AccountIdConvert::convert_location(location),
 					CurrencyIdConvert::convert(asset.clone()),
 					Match::matches_fungible(asset),
 				) {
 					// known asset
-					(Some(who), Some(currency_id), Some(amount)) => Ok(MultiCurrency::deposit(currency_id, &who, amount).unwrap()),// DepositFailAsset handler
+					(Some(receiver), Some(currency_id), Some(amount)) => Ok(MultiCurrency::deposit(currency_id, &receiver, amount).unwrap()),// DepositFailAsset handler
 					// unknown asset
 					_ => Ok(UnknownAsset::deposit(asset, location).unwrap()), // DepositFailAsset handler
 				}
@@ -524,6 +525,7 @@ use sp_std::ops::{Mul, Sub};
 				let receipt =
 					TxnReceipt::<T>::new(to.clone(), from.clone(),multi_id.clone(), ref_no.clone(), amount_u128.clone(),amount_u128,currency_id.into());
 
+
 				// Store to each storage item for txntickets
 				// Useful for getting reference no for TXN confirmation
 				// Start with the payee storage
@@ -533,7 +535,7 @@ use sp_std::ops::{Mul, Sub};
 					let index = p_vec.iter().position(|receipt| receipt.multi_id == multi_id);
 					if let Some(idx) = index {
 						// Get the receipt
-						let mut receipt = p_vec.get_mut(idx).ok_or(Error::<T>::UnexpectedError).unwrap();
+						let receipt = p_vec.get_mut(idx).ok_or(Error::<T>::UnexpectedError).unwrap();
 						receipt.update_txn(amount_u128);
 						receipt.update_amount(amount_u128)
 
@@ -593,10 +595,11 @@ use sp_std::ops::{Mul, Sub};
 
 				let to_account = T::Lookup::unlookup(multi_id.clone());
 
+				
 				pallet_assets::Call::<T,()>::transfer {
 					id: currency_id,
 					target: to_account,
-					amount,
+					amount
 				}.dispatch_bypass_filter(payer_origin).unwrap(); // Error handling
 
 				// Emit an event
@@ -616,8 +619,11 @@ use sp_std::ops::{Mul, Sub};
 			}
 
 
-			fn deposit(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> Result<(),DispatchError> {
-				let _ = <pallet_assets::Pallet<T>>::deposit(currency_id.into(), who, amount, Precision::Exact)?;
+			fn deposit(currency_id: Self::CurrencyId, receiver: &T::AccountId, amount: Self::Balance) -> Result<(),DispatchError> {
+				
+				
+
+				let _ = <pallet_assets::Pallet<T>>::deposit(currency_id.into(), receiver, amount, Precision::Exact)?;
 				Ok(())
 			}
 
@@ -924,6 +930,7 @@ use sp_std::ops::{Mul, Sub};
 			}
 		}
 
+		
 	}
 
 
