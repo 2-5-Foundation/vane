@@ -2,6 +2,7 @@
 
 mod parachain;
 mod relay_chain;
+mod asset_hub;
 
 
 use xcm_emulator::sp_tracing;
@@ -44,7 +45,38 @@ decl_test_parachain! {
 	}
 }
 
+// AssetHub
+decl_test_parachain! {
+	// An asset reserve parachain (Statemine)
+	pub struct AssetHub {
+		Runtime = asset_hub::Runtime,
+		XcmpMessageHandler = asset_hub::MsgQueue,
+		DmpMessageHandler = asset_hub::MsgQueue,
+		new_ext = {
+			// Initialise parachain-specific genesis state
+			use asset_hub::{MsgQueue, Runtime, System};
 
+			const INITIAL_BALANCE: u128 = <Runtime as pallet_assets::Config>::AssetDeposit::get() * 2;
+
+			let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
+
+			pallet_balances::GenesisConfig::<Runtime> { balances: vec![
+					// (ALICE, INITIAL_BALANCE),
+					(child_account_id(1000), INITIAL_BALANCE)
+				]}
+				.assimilate_storage(&mut t)
+				.unwrap();
+
+			let mut ext = sp_io::TestExternalities::new(t);
+			ext.execute_with(|| {
+				sp_tracing::try_init_simple();
+				System::set_block_number(1);
+				MsgQueue::set_para_id(1000.into());
+			});
+			ext
+		},
+	}
+}
 
 decl_test_relay_chain! {
 	pub struct Relay {
@@ -62,6 +94,7 @@ decl_test_network! {
 	pub struct MockNet {
 		relay_chain = Relay,
 		parachains = vec![
+			(1000, AssetHub),
 			(2000, Vane),
 		],
 	}
@@ -157,6 +190,9 @@ pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
 }
 
 
+// pub fn asset_hub() -> sp_io::TestExternalities {
+
+// }
 
 
 pub fn relay_ext() -> sp_io::TestExternalities {
