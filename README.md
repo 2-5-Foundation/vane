@@ -4,15 +4,15 @@
 
 ### Vane_Network
 
-Bringing safety into crypto transactions and a product on Polkadot & Ethereum enabling entrepreneurs expand their social commerce business by leveraging trust.
+Bringing safety into crypto transactions. Vane act as an extensible visa like network for safety in web3.
 
 Note: *vane-network is built to work without a native token to purchase*
 
 - **vane-network does not and will not have a native token to pruchase**, with our creative and user experience in mind solution enable vane to act as an extension safety and product layer on top of Polkadot & Ethereum (*soon*) & Bitcoin (*soon*). **Thus allowing users to continue using their favorite network & tokens and get vane features out of the box**.
 
-- Introducing reversible and confirmation of transactions, enabling users to confirm receiver's address before releasing funds and revert if not. Say goodbye to loosing funds due to wrong address input & wrong network selection.
+- Introducing reversible and confirmation of transactions in any blockchain network, enabling users to confirm receiver's address before releasing funds and revert if not. Say goodbye to loosing funds due to wrong address input & wrong network selection.
 
-- Enabling social-commerce entepreneurs to leverage trust in their interactions with customers and allowing attestable testimonials, configurable payments, royalty in digital products, revenue on on-chain ads and growth in their businesses.
+- One of the extensibility is enabling social-commerce entepreneurs to leverage trust in their interactions with customers and allowing attestable testimonials, configurable payments, royalty in digital products, revenue on on-chain ads and growth in their businesses.
 
 - An extensible product, whereby developers can extend vane tailored products & service in a streamlined safety pipeline, serving users per their needs.
 
@@ -21,7 +21,6 @@ Note: *vane-network is built to work without a native token to purchase*
 We envision vane to be defacto safety transfer layer and save users from catastrophic loss of their funds due to human mistakes. We believe crypto should feel safe and have a room for mistakes to be used without sacrifying total ownership and permissionless features.
 
 We do strongly believe blockchain technology can tremendously expand social-commerce market value and enable trust minimization between retailers and customer's interaction.
-
 
 ### Updates & Milestones
  
