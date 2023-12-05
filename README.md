@@ -1,4 +1,5 @@
 ## About
+![](https://github.com/2-5-Foundation/vane/blob/tanssi-branch/artifacts/Screenshot%202023-12-05%20at%201.43.35%E2%80%AFPM.png)
 
 [𝕏](https://twitter.com/VaneNetwork_): Vane Network
 
