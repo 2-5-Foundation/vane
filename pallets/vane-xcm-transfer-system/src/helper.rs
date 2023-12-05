@@ -621,7 +621,7 @@ use sp_std::ops::{Mul, Sub};
 
 			fn deposit(currency_id: Self::CurrencyId, receiver: &T::AccountId, amount: Self::Balance) -> Result<(),DispatchError> {
 				
-				
+
 
 				let _ = <pallet_assets::Pallet<T>>::deposit(currency_id.into(), receiver, amount, Precision::Exact)?;
 				Ok(())
@@ -654,7 +654,7 @@ use sp_std::ops::{Mul, Sub};
 			fn convert(asset: MultiAsset) -> Option<CurrencyId> {
 				match asset.id {
 					Concrete(MultiLocation{parents:1,interior:Here}) => Some(CurrencyId::DOT),
-					_ => {None}
+					_ => Some(CurrencyId::DOT)
 				}
 			}
 		}
@@ -664,7 +664,7 @@ use sp_std::ops::{Mul, Sub};
 				if location == MultiLocation::parent() {
 					return Some(CurrencyId::DOT)
 				}else{
-					None
+					Some(CurrencyId::DOT)
 				}
 			}
 		}

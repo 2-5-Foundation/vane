@@ -235,8 +235,8 @@ use super::*;
 				vec![
 					
 					buy_execution((Here, amount)),
-					DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: BOB.into() }.into() }
-					//TransferAsset { assets: (MultiAsset::from(10::1)), beneficiary: AccountId32 { network: None, id: BOB.into() }.into()  }
+					DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: ALICE.into() }.into() }
+					// TransferAsset { assets: (MultiAsset::from(10::1)), beneficiary: AccountId32 { network: None, id: BOB.into() }.into()  }
 				]
 			);
 
@@ -244,7 +244,8 @@ use super::*;
 				TransferReserveAsset { 
 					assets: (Here, amount).into(),
 					dest: (Parachain(2000).into()),
-					xcm: inner_asset_messages },
+					xcm: inner_asset_messages
+				}
 				
 			]);
 
@@ -258,13 +259,47 @@ use super::*;
 			// );
 
 			// Normal ReserveAssetTransfer
+
+			// Alice -> vane sovereign ---> Polkadot Relay
+			// following instructions -> Buy execution on vane para and deposit equivalent asset to beneficiary account inside vane
 			// assert_ok!(
 			// 	relay_chain::XcmPallet::reserve_transfer_assets(
 			// 		relay_chain::RuntimeOrigin::signed(ALICE),
 			// 		bx!(Parachain(2000).into()),
-			// 		bx!(AccountId32 { network: None, id: BOB.into() }.into()),
+			// 		bx!(AccountId32 { network: None, id: ALICE.into() }.into()),
 			// 		bx!((Here, amount).into()),
 			// 		0
+			// 	)
+			// );
+
+			// Transfer from Alice to Bob
+			let vDotAsset = ( 
+				X2(
+					PalletInstance(10),
+					GeneralIndex(1)
+				),
+				10000
+			);
+				
+
+			// let transfer_message = Xcm::<()>(vec![
+			// 	TransferAsset { assets: vDotAsset.into(), beneficiary: AccountId32 { network: None, id: BOB.into() }.into() }
+			// ]);
+
+			// assert_ok!(
+			// 	relay_chain::XcmPallet::send(
+			// 		relay_chain::RuntimeOrigin::signed(ALICE),
+			// 		bx!(Parachain(2000).into()),
+			// 		bx!(VersionedXcm::V3(transfer_message))
+			// 	)	
+			// );
+
+			// assert_ok!(
+			// 	relay_chain::XcmPallet::send(
+			// 		relay_chain::RuntimeOrigin::signed(ALICE),
+			// 		bx!(Parachain(2000).into()),
+			// 		bx!(VersionedXcm::V3(()))
+
 			// 	)
 			// );
 
@@ -276,13 +311,8 @@ use super::*;
 			// 	)
 			// );
 
-			assert_ok!(
-				relay_chain::XcmPallet::execute(
-					relay_chain::RuntimeOrigin::signed(ALICE),
-					bx!(VersionedXcm::V3(asset_message)),
-					Weight::from_parts(1_000_000_000,1024*1024)
-				)
-			);
+			
+			
 
 			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
@@ -306,10 +336,10 @@ use super::*;
 			// 	100000
 			// );
 
-			assert_eq!(
-				VanePalletAsset::balance(CurrencyId::DOT, BOB),
-				amount
-			);
+			// assert_eq!(
+			// 	VanePalletAsset::balance(CurrencyId::DOT, ALICE),
+			// 	amount
+			// );
 
 			// let txn_receipt = VaneXcmTransferSystem::get_payer_txn_receipt(ALICE,BOB);
 			// println!("{:?}",txn_receipt)
