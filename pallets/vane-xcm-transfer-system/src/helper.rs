@@ -135,7 +135,7 @@ use sp_std::ops::{Mul, Sub};
 		pub multi_id: T::AccountId,
 		pub amount: u128,
 		pub reference_no: BoundedVec<u8,MAX_BYTES>,
-		currency: T::AssetId,
+		currency: Token,
 		no_txn: BoundedVec<u128, MAX_NO_TXNS>,
 		pub xcm_status: XcmStatus
 	}
@@ -148,7 +148,7 @@ use sp_std::ops::{Mul, Sub};
 			ref_no: BoundedVec<u8,MAX_BYTES>,
 			amount: u128,
 			txn: u128,
-			currency: T::AssetId
+			currency: Token
 		) -> Self {
 
 			let mut no_txn = BoundedVec::new();
@@ -464,7 +464,7 @@ use sp_std::ops::{Mul, Sub};
 
 		pub struct MultiCurrencyAsset<T: frame_system::Config>(PhantomData<T>);
 
-		impl<T: pallet_assets::Config + crate::pallet::Config + pallet_balances::Config + pallet_utility::Config > VaneMultiCurrency<T::AccountId> for MultiCurrencyAsset<T>{
+		impl<T: pallet_assets::Config + crate::pallet::Config + pallet_balances::Config> VaneMultiCurrency<T::AccountId> for MultiCurrencyAsset<T>{
 
 			type CurrencyId = T::AssetIdParameter;
 			type Balance = <T as pallet_assets::Config>::Balance;
@@ -501,120 +501,22 @@ use sp_std::ops::{Mul, Sub};
 			}
 
 			fn transfer(currency_id: Self::CurrencyId, from: &T::AccountId, to: &T::AccountId, amount: Self::Balance) -> DispatchResult {
+				
 				let origin = RawOrigin::Signed(from.clone());
-				let payer_origin = <T as frame_system::Config>::RuntimeOrigin::from(origin);
-
+				let oo = <T as frame_system::Config>::RuntimeOrigin::from(origin);
+		
 				// 1. Construct a multi id account
 				// send the funds from alice to the multi id account ( Alice, Bob)
-				let account_signers = AccountSigners::<T>::new(to.clone(), from.clone());
-				let multi_id = Pallet::derive_multi_id(account_signers.clone());
-
-				Pallet::<T>::create_multi_account(multi_id.clone())?;
-
-				// Register AllowedSigners
-				let ref_no = Pallet::<T>::derive_reference_no(from.clone(), to.clone(), multi_id.clone());
-
-				AllowedSigners::<T>::insert(&from, ref_no.to_vec(), account_signers);
-
-
-				//if the multi_id is the same as previous Receipt just increment the total amount and add the txn_no amount
-
-				let amount_u128:u128 = amount.try_into().map_err(|_| Error::<T>::UnexpectedError)?; // handle error
-
-				
-				let receipt =
-					TxnReceipt::<T>::new(to.clone(), from.clone(),multi_id.clone(), ref_no.clone(), amount_u128.clone(),amount_u128,currency_id.into());
-
-
-				// Store to each storage item for txntickets
-				// Useful for getting reference no for TXN confirmation
-				// Start with the payee storage
-
-				PayeeTxnReceipt::<T>::mutate(&to, |p_vec|{
-					// Check if the multi_id already exists in the receipts and get its index of the receipt
-					let index = p_vec.iter().position(|receipt| receipt.multi_id == multi_id);
-					if let Some(idx) = index {
-						// Get the receipt
-						let receipt = p_vec.get_mut(idx).ok_or(Error::<T>::UnexpectedError).unwrap();
-						receipt.update_txn(amount_u128);
-						receipt.update_amount(amount_u128)
-
-					}else{
-						p_vec.push(receipt.clone())
-					}
-				});
-
-				// Update for Payer/Sender Txn receipt
-				let existing_payer_receipt = PayerTxnReceipt::<T>::get(&from.clone(),&to.clone());
-
-				if let Some(mut receipt) = existing_payer_receipt {
-
-					// vane_payment::PayerTxnReceipt::<T>::mutate(&payer, &payee, |receipt_inner|{
-					// 	receipt_inner.clone().unwrap().update_txn(amount)
-					// });
-					receipt.update_txn(amount_u128);
-					receipt.update_amount(amount_u128);
-
-				}else{
-
-					PayerTxnReceipt::<T>::insert(from,to,receipt);
-				}
-
-				// Fund the accounts for fees.
-
-				// calculate the fees to fund
-				let fees_amount: <T as pallet_balances::Config>::Balance = 100u32.into();
-
-				let fund_payer_call = pallet_balances::Call::<T,()>::transfer_keep_alive { dest: T::Lookup::unlookup(from.clone()), value: fees_amount };
-				let fund_payee_call = 	pallet_balances::Call::<T,()>::transfer_keep_alive { dest: T::Lookup::unlookup(to.clone()), value: fees_amount };
-
-
-				// Chain Soverign Account
-				let para_account = ParaAccount::<T>::get().unwrap(); // It should panic and we have to avoid that
-
-				let para_origin = RawOrigin::Signed(para_account.clone());
-				let para_account_origin = <T as frame_system::Config>::RuntimeOrigin::from(para_origin);
-
-				
-				fund_payer_call.dispatch_bypass_filter(para_account_origin.clone()).unwrap();
-				// handle error if it fails it should panic no continuing
-
-				
-				fund_payee_call.dispatch_bypass_filter(para_account_origin).unwrap();
-				 // handle error if it fails it should panic no continuing
-
-				// Ok(pallet_utility::Call::<T>::batch_all {
-
-				// 	 calls: vec![
-				// 		fund_payer_call,
-				// 		fund_payee_call
-				// 		] 
-
-				// 	}.dispatch_bypass_filter(para_account_origin)?); Evaluate how we cn use pallet utility for batch calls
-
-
-				let to_account = T::Lookup::unlookup(multi_id.clone());
-
-				
+		
+				let to_account = T::Lookup::unlookup(to.clone());
+				//<pallet_assets::Pallet<T>>::transfer(origin,currency_id,to.into(),amount)
 				pallet_assets::Call::<T,()>::transfer {
 					id: currency_id,
 					target: to_account,
-					amount
-				}.dispatch_bypass_filter(payer_origin).unwrap(); // Error handling
-
-				// Emit an event
-				let time = <frame_system::Pallet<T>>::block_number();
-
-				Pallet::deposit_event( Event::<T>::XcmTokenTransferInitiated { 
-					time,
-					amount: amount_u128,
-					multi_id,
-					token: currency_id 
-				});
+					amount,
+				}.dispatch_bypass_filter(oo).unwrap();
 
 				Ok(())
-
-
 
 			}
 
@@ -685,91 +587,87 @@ use sp_std::ops::{Mul, Sub};
 	impl<T: Config + crate::pallet::Config> Pallet<T>{
 
 
-		// pub fn ensure_xcm_signed<OuterOrigin, AccountId>(o: OuterOrigin) -> Result<AccountId, Error<T>>
-		// 	where
-		// 		OuterOrigin: Into<Result<RawOrigin<AccountId>, OuterOrigin>>,
-		// {
-		// 	log::info!(
-		// 			target:"",
-		// 			"{:?}",
-		// 			o
-		// 		);
-		// 	match o.into() {
-		// 		Ok(RawOrigin::Signed(t)) => Ok(t),
-		// 		_ => Err(Error::<T>::NotTheCaller),
-		// 	}
-		// }
+		pub fn ensure_xcm_signed<OuterOrigin, AccountId>(o: OuterOrigin) -> Result<AccountId, Error<T>>
+			where
+				OuterOrigin: Into<Result<RawOrigin<AccountId>, OuterOrigin>>,
+		{
+			
+			match o.into() {
+				Ok(RawOrigin::Signed(t)) => Ok(t),
+				_ => Err(Error::<T>::NotTheCaller),
+			}
+		}
 
-        // pub fn vane_multisig_record(
-        //     payer: T::AccountId,
-        //     payee: T::AccountId,
-        //     amount: u128,
-        //     currency: Token
-        // ) -> Result<T::AccountId,Error<T>>{
+        pub fn vane_multisig_record(
+            payer: T::AccountId,
+            payee: T::AccountId,
+            amount: u128,
+            currency: Token
+        ) -> Result<T::AccountId,Error<T>>{
 
-		// 	// ****** CRUCIAL ******
-		// 	// Check the balance receipt in Vane Soverign Account before proceeding
+			// ****** CRUCIAL ******
+			// Check the balance receipt in Vane Soverign Account before proceeding
 
 
-		// 	let accounts = AccountSigners::<T>::new(payee.clone(), payer.clone());
-		// 	let multi_id = Self::derive_multi_id(accounts.clone());
+			let accounts = AccountSigners::<T>::new(payee.clone(), payer.clone());
+			let multi_id = Self::derive_multi_id(accounts.clone());
 
 
-		// 	let ref_no = Self::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
+			let ref_no = Self::derive_reference_no(payer.clone(), payee.clone(), multi_id.clone());
 
-		// 	AllowedSigners::<T>::insert(&payer, ref_no.to_vec(), accounts);
+			AllowedSigners::<T>::insert(&payer, ref_no.to_vec(), accounts);
 
-		// 	//if the multi_id is the same as previous Receipt just increment the total amount and add the txn_no amount
+			//if the multi_id is the same as previous Receipt just increment the total amount and add the txn_no amount
 
-        //     let receipt =
-		// 		TxnReceipt::<T>::new(payee.clone(), payer.clone(),multi_id.clone(), ref_no.clone(), amount.clone(),amount,Some(currency));
+            let receipt =
+				TxnReceipt::<T>::new(payee.clone(), payer.clone(),multi_id.clone(), ref_no.clone(), amount.clone(),amount,currency);
 
-		// 	// Store to each storage item for txntickets
-		// 	// Useful for getting reference no for TXN confirmation
-		// 	// Start with the payee storage
+			// Store to each storage item for txntickets
+			// Useful for getting reference no for TXN confirmation
+			// Start with the payee storage
 
-		// 	PayeeTxnReceipt::<T>::mutate(&payee, |p_vec|{
-		// 		// Check if the multi_id already exists in the receipts and get its index of the receipt
-		// 		let index = p_vec.iter().position(|receipt| receipt.multi_id == multi_id);
-		// 		if let Some(idx) = index {
-		// 			// Get the receipt
-		// 			let mut receipt = p_vec.get_mut(idx).ok_or(Error::<T>::UnexpectedError).unwrap();
-		// 			receipt.update_txn(amount);
-		// 			receipt.update_amount(amount)
+			PayeeTxnReceipt::<T>::mutate(&payee, |p_vec|{
+				// Check if the multi_id already exists in the receipts and get its index of the receipt
+				let index = p_vec.iter().position(|receipt| receipt.multi_id == multi_id);
+				if let Some(idx) = index {
+					// Get the receipt
+					let mut receipt = p_vec.get_mut(idx).ok_or(Error::<T>::UnexpectedError).unwrap();
+					receipt.update_txn(amount);
+					receipt.update_amount(amount)
 
-		// 		}else{
-		// 			p_vec.push(receipt.clone())
-		// 		}
-		// 	});
+				}else{
+					p_vec.push(receipt.clone())
+				}
+			});
 
-		// 	// Update for Payer/Sender Txn receipt
-		// 	let existing_payer_receipt = PayerTxnReceipt::<T>::get(&payer,&payee);
+			// Update for Payer/Sender Txn receipt
+			let existing_payer_receipt = PayerTxnReceipt::<T>::get(&payer,&payee);
 
-		// 	if let Some(mut receipt) = existing_payer_receipt {
+			if let Some(mut receipt) = existing_payer_receipt {
 
-		// 		// vane_payment::PayerTxnReceipt::<T>::mutate(&payer, &payee, |receipt_inner|{
-		// 		// 	receipt_inner.clone().unwrap().update_txn(amount)
-		// 		// });
-		// 		receipt.update_txn(amount);
-		// 		receipt.update_amount(amount);
+				// vane_payment::PayerTxnReceipt::<T>::mutate(&payer, &payee, |receipt_inner|{
+				// 	receipt_inner.clone().unwrap().update_txn(amount)
+				// });
+				receipt.update_txn(amount);
+				receipt.update_amount(amount);
 
-		// 	}else{
+			}else{
 
-		// 		PayerTxnReceipt::<T>::insert(&payer,&payee,receipt);
-		// 	}
+				PayerTxnReceipt::<T>::insert(&payer,&payee,receipt);
+			}
 
 
-		// 	Self::create_multi_account(multi_id.clone()).map_err(|_| Error::<T>::UnexpectedError)?;
+			Self::create_multi_account(multi_id.clone()).map_err(|_| Error::<T>::UnexpectedError)?;
 
-		// 	let time = <frame_system::Pallet<T>>::block_number();
+			let time = <frame_system::Pallet<T>>::block_number();
 
-		// 	Self::deposit_event(Event::MultisigAccountCreated {
-		// 		id: multi_id.clone(),
-		// 		time,
-		// 	});
+			Self::deposit_event(Event::MultisigAccountCreated {
+				id: multi_id.clone(),
+				time,
+			});
 
-        //     Ok(multi_id)
-        // }
+            Ok(multi_id)
+        }
 
 
         pub fn vane_xcm_transfer_dot(
@@ -928,6 +826,124 @@ use sp_std::ops::{Mul, Sub};
 				<frame_system::Account<T>>::set(multi_id, account_info);
 				Ok(())
 			}
+		}
+
+
+		pub fn deposit_to_multi_id(){
+
+			// let origin = RawOrigin::Signed(from.clone());
+			// let payer_origin = <T as frame_system::Config>::RuntimeOrigin::from(origin);
+
+			// // 1. Construct a multi id account
+			// // send the funds from alice to the multi id account ( Alice, Bob)
+			// let account_signers = AccountSigners::<T>::new(to.clone(), from.clone());
+			// let multi_id = Pallet::derive_multi_id(account_signers.clone());
+
+			// Pallet::<T>::create_multi_account(multi_id.clone())?;
+
+			// // Register AllowedSigners
+			// let ref_no = Pallet::<T>::derive_reference_no(from.clone(), to.clone(), multi_id.clone());
+
+			// AllowedSigners::<T>::insert(&from, ref_no.to_vec(), account_signers);
+
+
+			// //if the multi_id is the same as previous Receipt just increment the total amount and add the txn_no amount
+
+			// let amount_u128:u128 = amount.try_into().map_err(|_| Error::<T>::UnexpectedError)?; // handle error
+
+			
+			// let receipt =
+			// 	TxnReceipt::<T>::new(to.clone(), from.clone(),multi_id.clone(), ref_no.clone(), amount_u128.clone(),amount_u128,currency_id.into());
+
+
+			// // Store to each storage item for txntickets
+			// // Useful for getting reference no for TXN confirmation
+			// // Start with the payee storage
+
+			// PayeeTxnReceipt::<T>::mutate(&to, |p_vec|{
+			// 	// Check if the multi_id already exists in the receipts and get its index of the receipt
+			// 	let index = p_vec.iter().position(|receipt| receipt.multi_id == multi_id);
+			// 	if let Some(idx) = index {
+			// 		// Get the receipt
+			// 		let receipt = p_vec.get_mut(idx).ok_or(Error::<T>::UnexpectedError).unwrap();
+			// 		receipt.update_txn(amount_u128);
+			// 		receipt.update_amount(amount_u128)
+
+			// 	}else{
+			// 		p_vec.push(receipt.clone())
+			// 	}
+			// });
+
+			// // Update for Payer/Sender Txn receipt
+			// let existing_payer_receipt = PayerTxnReceipt::<T>::get(&from.clone(),&to.clone());
+
+			// if let Some(mut receipt) = existing_payer_receipt {
+
+			// 	// vane_payment::PayerTxnReceipt::<T>::mutate(&payer, &payee, |receipt_inner|{
+			// 	// 	receipt_inner.clone().unwrap().update_txn(amount)
+			// 	// });
+			// 	receipt.update_txn(amount_u128);
+			// 	receipt.update_amount(amount_u128);
+
+			// }else{
+
+			// 	PayerTxnReceipt::<T>::insert(from,to,receipt);
+			// }
+
+			// // Fund the accounts for fees.
+
+			// // calculate the fees to fund
+			// let fees_amount: <T as pallet_balances::Config>::Balance = 100u32.into();
+
+			// let fund_payer_call = pallet_balances::Call::<T,()>::transfer_keep_alive { dest: T::Lookup::unlookup(from.clone()), value: fees_amount };
+			// let fund_payee_call = 	pallet_balances::Call::<T,()>::transfer_keep_alive { dest: T::Lookup::unlookup(to.clone()), value: fees_amount };
+
+
+			// // Chain Soverign Account
+			// let para_account = ParaAccount::<T>::get().unwrap(); // It should panic and we have to avoid that
+
+			// let para_origin = RawOrigin::Signed(para_account.clone());
+			// let para_account_origin = <T as frame_system::Config>::RuntimeOrigin::from(para_origin);
+
+			
+			// fund_payer_call.dispatch_bypass_filter(para_account_origin.clone()).unwrap();
+			// // handle error if it fails it should panic no continuing
+
+			
+			// fund_payee_call.dispatch_bypass_filter(para_account_origin).unwrap();
+			//  // handle error if it fails it should panic no continuing
+
+			// // Ok(pallet_utility::Call::<T>::batch_all {
+
+			// // 	 calls: vec![
+			// // 		fund_payer_call,
+			// // 		fund_payee_call
+			// // 		] 
+
+			// // 	}.dispatch_bypass_filter(para_account_origin)?); Evaluate how we cn use pallet utility for batch calls
+
+
+			// let to_account = T::Lookup::unlookup(multi_id.clone());
+
+			
+			// pallet_assets::Call::<T,()>::transfer {
+			// 	id: currency_id,
+			// 	target: to_account,
+			// 	amount
+			// }.dispatch_bypass_filter(payer_origin).unwrap(); // Error handling
+
+			// // Emit an event
+			// let time = <frame_system::Pallet<T>>::block_number();
+
+			// Pallet::deposit_event( Event::<T>::XcmTokenTransferInitiated { 
+			// 	time,
+			// 	amount: amount_u128,
+			// 	multi_id,
+			// 	token: currency_id 
+			// });
+
+			// Ok(())
+
 		}
 
 		

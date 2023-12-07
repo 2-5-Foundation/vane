@@ -61,7 +61,7 @@ decl_test_parachain! {
 			let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
 
 			pallet_balances::GenesisConfig::<Runtime> { balances: vec![
-					// (ALICE, INITIAL_BALANCE),
+					// (ALICE, 10000000000),
 					(child_account_id(1000), INITIAL_BALANCE)
 				]}
 				.assimilate_storage(&mut t)
@@ -204,7 +204,7 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 		balances: vec![
 			(ALICE, 100_000_000),
 			(child_account_id(2000), 10),
- 
+
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -224,6 +224,9 @@ pub type VanePalletAsset = pallet_assets::Pallet<parachain::Runtime>;
 pub type VanePalletBalances = pallet_balances::Pallet<parachain::Runtime>;
 pub type VaneXcmTransferSystem = vane_xcm_transfer_system::Pallet<parachain::Runtime>;
 pub type FrameSystem  = frame_system::Pallet<parachain::Runtime>;
+
+
+pub type HubPalletBalances = pallet_balances::Pallet<asset_hub::Runtime>;
 
 #[cfg(test)]
 mod tests {
@@ -255,44 +258,28 @@ use super::*;
 
 		Relay::execute_with(||{
 
-			// Send Xcm reserve Transfer with dest = para 1(vane) from Alice account to Bob
-			let call = parachain::RuntimeCall::VaneXcmTransfer(vane_xcm_transfer_system::Call::tester {  });
-			let inner_msg = Xcm::<()>(vec![
-				Transact { origin_kind: OriginKind::SovereignAccount, require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024), call:call.encode().into() }
-			]);
-
-			let message = Xcm::<()>(vec![
-				WithdrawAsset((Here, amount).into()),
-				buy_execution((Here,amount)),
-				DepositReserveAsset { assets: All.into(), dest: AccountId32 { network: None, id: BOB.into() }.into(), xcm: inner_msg }
-			]);
+			
+			
 
 			let inner_asset_messages = Xcm::<()>(
 				vec![
-					
+
 					buy_execution((Here, amount)),
-					DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: ALICE.into() }.into() }
+					DepositAsset { assets: All.into(), beneficiary: AccountId32 { network: None, id: BOB.into() }.into() }
 					// TransferAsset { assets: (MultiAsset::from(10::1)), beneficiary: AccountId32 { network: None, id: BOB.into() }.into()  }
 				]
 			);
 
-			let asset_message = Xcm::<relay_chain::RuntimeCall>(vec![
-				TransferReserveAsset { 
+			let asset_message = Xcm::<()>(vec![
+				TransferReserveAsset {
 					assets: (Here, amount).into(),
 					dest: (Parachain(2000).into()),
 					xcm: inner_asset_messages
 				}
-				
+
 			]);
 
-			// assert_ok!(
-			// 	relay_chain::XcmPallet::send(
-			// 		relay_chain::RuntimeOrigin::signed(ALICE),
-			// 		bx!(Parachain(2000).into()),
-			// 		bx!(VersionedXcm::V3(message))
-			// 	)
-			//
-			// );
+			
 
 			// Normal ReserveAssetTransfer
 
@@ -309,46 +296,36 @@ use super::*;
 			// );
 
 			// Transfer from Alice to Bob
-			let vDotAsset = ( 
+			let vDotAsset = (
 				X2(
 					PalletInstance(10),
 					GeneralIndex(1)
 				),
 				10000
 			);
-				
 
-			// let transfer_message = Xcm::<()>(vec![
-			// 	TransferAsset { assets: vDotAsset.into(), beneficiary: AccountId32 { network: None, id: BOB.into() }.into() }
-			// ]);
 
 			// assert_ok!(
 			// 	relay_chain::XcmPallet::send(
 			// 		relay_chain::RuntimeOrigin::signed(ALICE),
-			// 		bx!(Parachain(2000).into()),
-			// 		bx!(VersionedXcm::V3(transfer_message))
-			// 	)	
-			// );
-
-			// assert_ok!(
-			// 	relay_chain::XcmPallet::send(
-			// 		relay_chain::RuntimeOrigin::signed(ALICE),
-			// 		bx!(Parachain(2000).into()),
-			// 		bx!(VersionedXcm::V3(()))
-
-			// 	)
-			// );
-
-			// assert_ok!(
-			// 	relay_chain::XcmPallet::send(
-			// 		relay_chain::RuntimeOrigin::signed(ALICE),
-			// 		bx!(Parachain(2000).into()),
+			// 		bx!(Parachain(1000).into()),
 			// 		bx!(VersionedXcm::V3(asset_message))
 			// 	)
 			// );
 
-			
-			
+			// Tsting batch xcms
+			// assert_ok!(
+			// 	relay_chain::XcmPallet::teleport_assets(
+			// 		relay_chain::RuntimeOrigin::signed(ALICE), 
+			// 		bx!(Parachain(1000).into()), 
+			// 		bx!(AccountId32 { network: None, id: ALICE.into() }.into()), 
+			// 		bx!((Here, amount).into()), 
+			// 		0
+			// 	)
+			// );
+
+
+
 
 			relay_chain::System::events().iter().for_each(|e| println!("{:#?}",e));
 
@@ -358,6 +335,14 @@ use super::*;
 			// 	amount
 			// )
 
+		});
+
+		AssetHub::execute_with(||{
+			assert_eq!(
+				HubPalletBalances::free_balance(ALICE),
+				amount
+			);
+			asset_hub::System::events().iter().for_each(|e| println!("{:#?}",e));
 		});
 
 		// Emit Vane parachain events

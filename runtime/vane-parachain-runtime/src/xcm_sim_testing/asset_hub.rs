@@ -30,7 +30,6 @@ use assets_common::foreign_creators::ForeignCreators;
 use vane_xcm_transfer_system::{CurrencyId, MultiCurrencyAsset, MultiCurrencyConverter, VaneDerivedAssets, VaneForeignCreators};
 use staging_xcm_executor::traits::MatchesFungible;
 use sp_runtime::traits::{CheckedConversion, Convert};
-
 // `EnsureOriginWithArg` impl for `CreateOrigin` which allows only XCM origins
 // which are locations containing the class location.
 use staging_xcm_executor::traits::ConvertLocation;
@@ -207,8 +206,8 @@ impl Config for XcmConfig {
 	type XcmSender = XcmRouter;
 	type AssetTransactor = AssetTransactors;
 	type OriginConverter = XcmOriginToCallOrigin;
-	type IsReserve = vane_xcm_transfer_system::VaneDerivedAssets;
-	type IsTeleporter = ();
+	type IsReserve = VaneDerivedAssets;
+	type IsTeleporter = NativeAsset;
 	type Aliasers = AliasForeignAccountId32<ParentPrefix>; // test for both Parent and AssetHub Prefix
 	type UniversalLocation = UniversalLocation;
 	type Barrier = Barrier;
