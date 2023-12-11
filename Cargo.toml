@@ -6,8 +6,7 @@ members = [
 	"node",
 	"pallets/vane-xcm-transfer-system",
 	"pallets/vane-asset-xcm",
-	"runtime/vane-parachain-runtime",
-	"runtime/vane-container-runtime",
+	"runtime/*"
 ]
 resolver = "2"
 
@@ -116,6 +115,10 @@ pallet-cc-authorities-noting = { git = "https://github.com/moondance-labs/dancek
 pallet-author-inherent = { git = "https://github.com/moondance-labs/moonkit", default-features = false , branch = "tanssi-polkadot-v1.1.0" }
 
 #NODE
+
+
+##container-chain-template-simple-runtime = { path = "runtime", default-features = false }
+
 
 #polkadot sdk
 frame-benchmarking-cli = {git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.1.0" }

@@ -524,6 +524,19 @@ use sp_std::ops::{Mul, Sub};
 			fn deposit(currency_id: Self::CurrencyId, receiver: &T::AccountId, amount: Self::Balance) -> Result<(),DispatchError> {
 				
 
+				// Include neccessary fees 
+				let para_account = ParaAccount::<T>::get().unwrap(); // It should panic and we have to avoid that
+
+				let para_origin = RawOrigin::Signed(para_account.clone());
+				let para_account_origin = <T as frame_system::Config>::RuntimeOrigin::from(para_origin);
+
+				// Transfer fees
+				let fees_amount: <T as pallet_balances::Config>::Balance = 100u32.into();
+
+				pallet_balances::Call::<T,()>::transfer_keep_alive {
+					dest: T::Lookup::unlookup(receiver.clone()), 
+					value: fees_amount 
+				}.dispatch_bypass_filter(para_account_origin).unwrap();
 
 				let _ = <pallet_assets::Pallet<T>>::deposit(currency_id.into(), receiver, amount, Precision::Exact)?;
 				Ok(())
@@ -584,7 +597,7 @@ use sp_std::ops::{Mul, Sub};
 
 
 
-	impl<T: Config + crate::pallet::Config> Pallet<T>{
+	impl<T: Config + crate::pallet::Config + pallet_balances::Config> Pallet<T>{
 
 
 		pub fn ensure_xcm_signed<OuterOrigin, AccountId>(o: OuterOrigin) -> Result<AccountId, Error<T>>
@@ -672,40 +685,38 @@ use sp_std::ops::{Mul, Sub};
 
         pub fn vane_xcm_transfer_dot(
             amount: u128,
+			payer: T::AccountId,
             multi_id: AccountIdLookupOf<T>, // Multi Id Account
-			multi_id_acc: T::AccountId, // Just for types difference usage but this and multi_id are sme value
+			payee: T::AccountId, // Just for types difference usage but this and multi_id are sme value
 			asset_id: T::AssetIdParameter
 		) -> DispatchResult {
 
 
 			// Deposit Amount to MultiSig Account
-			let issuer = ParaAccount::<T>::get().unwrap();
-
+			let para_account = ParaAccount::<T>::get().unwrap();
+			
+			// Transfer from sendef to multi_id account
 			let balance: <T as pallet_assets::Config>::Balance = amount.try_into().map_err(|_| Error::<T>::UnexpectedError)? ;
 
-			// Check if the multi_id account does contain the tokens
-			let to_check_balance:<T as pallet_assets::Config>::Balance = 0u128.try_into().map_err(|_| Error::<T>::UnexpectedError)?;
+			<pallet_assets::Pallet<T>>::transfer(
+				RawOrigin::Signed(payer).into(), 
+				asset_id, 
+				multi_id.clone(), 
+				balance
+			)?;
 
-			if <pallet_assets::Pallet<T>>::balance(asset_id.into(),multi_id_acc.clone()) != to_check_balance {
+			// Transfer fees to receiver
+			let para_origin = RawOrigin::Signed(para_account.clone());
+			let para_account_origin = <T as frame_system::Config>::RuntimeOrigin::from(para_origin);
 
-				let current_balance = <pallet_assets::Pallet<T>>::balance(asset_id.into(),multi_id_acc);
-				let to_mint = current_balance.add(balance.try_into().expect("Failed to add balances in pallet  vane_xcm"));
+			// Transfer fees
+			let fees_amount: <T as pallet_balances::Config>::Balance = 100u32.into();
 
-				<pallet_assets::Pallet<T>>::mint(
-					RawOrigin::Signed(issuer).into(),
-					asset_id,
-					multi_id.clone(),
-					to_mint // handle this error
-				)?;
+			pallet_balances::Call::<T,()>::transfer_keep_alive {
+				dest: T::Lookup::unlookup(payee.clone()), 
+				value: fees_amount 
+			}.dispatch_bypass_filter(para_account_origin).unwrap();
 
-			}else{
-				<pallet_assets::Pallet<T>>::mint(
-					RawOrigin::Signed(issuer).into(),
-					asset_id,
-					multi_id.clone(),
-					balance // handle this error
-				)?;
-			}
 
 			let time = <frame_system::Pallet<T>>::block_number();
 			// Event
@@ -749,7 +760,7 @@ use sp_std::ops::{Mul, Sub};
 
 			// Take 1 amount
 
-			let new_amount = amount.sub(10_000_000_000);
+			let new_amount = amount.sub(10_000);
 
 			let message = Xcm::<()>(vec![
 				// Transfer equivalent funds from Sovereign Account to payee account

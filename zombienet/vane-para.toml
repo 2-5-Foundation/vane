@@ -1,0 +1,46 @@
+[settings]
+timeout = 1000
+provider = "native"
+
+[relaychain]
+chain = "rococo-local"
+chain_spec_path = "rococo.json"
+default_command = "../bin/polkadot"
+default_args = ["--no-hardware-benchmarks", "-lparachain=debug", "--database=paritydb"]
+
+
+  [[relaychain.nodes]]
+  name = "alice"
+  validator = true
+  ws_port = 8000
+
+  [[relaychain.nodes]]
+  name = "bob"
+  validator = true
+  ws_port = 8050
+
+[[parachains]]
+id = 2000
+# chain = ""
+# chain_spec_path = "template-raw.json"
+cumulus_based = true
+
+
+	[[parachains.collators]]
+	name = "collator_1"
+	#command = "target/release/vane-node"
+  validator = true
+  command = "../../polkadot-sdk/target/release/parachain-template-node"
+  args = ["--force-authoring"]
+
+#	args = [ "-lxcm=trace", "--state-cache-size=0" ]
+	# [[parachains.collators]]
+	# name = "collator_2"
+  # validator = true
+	# #command = "target/release/vane-node"
+  # command = "../../polkadot-sdk/target/release/parachain-template-node"
+  # args = ["--force-authoring"]
+
+
+#	args = [ "-lxcm=trace", "--state-cache-size=0" ]
+

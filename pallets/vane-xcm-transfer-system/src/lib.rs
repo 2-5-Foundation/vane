@@ -23,7 +23,7 @@ mod pallet{
 
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_xcm::Config + pallet_assets::Config {
+	pub trait Config: frame_system::Config + pallet_xcm::Config + pallet_assets::Config + pallet_balances::Config {
 
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 	}
@@ -56,7 +56,7 @@ mod pallet{
 
 	#[pallet::storage]
 	#[pallet::unbounded]
-	#[pallet::getter(fn get_signers)]
+	#[pallet::getter(fn get_confirmed_signers)]
 
 	// Signers who have confirmed the transaction which will be compared to allowed signers as verification process
 	pub type ConfirmedSigners<T: Config> =
@@ -194,7 +194,7 @@ mod pallet{
 	impl<T: Config> Pallet<T>{
 
 		#[pallet::call_index(0)]
-		#[pallet::weight(10)]
+		#[pallet::weight(1000000000000000)]
 		pub fn vane_transfer(
 			origin: OriginFor<T>,
 			payee: AccountIdLookupOf<T>,
@@ -205,20 +205,15 @@ mod pallet{
 		) -> DispatchResult{
 			// log the origin
 
-			let caller = ensure_signed(origin.clone())?;
-			log::info!(
-				target: "",
-				" Caller {:?}",
-				caller,
-			);
-
+			let payer = ensure_signed(origin.clone())?;
+			
 
 			let payee_acc = T::Lookup::lookup(payee.clone())?;
 
 			//ensure!( caller_acc == payer, Error::<T>::NotTheCaller);
 			// Construct a Multisig Account
 
-			let multi_id = Self::vane_multisig_record(caller, payee_acc, amount, currency.clone())?;
+			let multi_id = Self::vane_multisig_record(payer.clone(), payee_acc.clone(), amount, currency.clone())?;
 
 			// Check the Token type
 
@@ -228,7 +223,7 @@ mod pallet{
 					let multi_id_acc = T::Lookup::unlookup(multi_id.clone());
 					let asset = asset_id;
 
-					Self::vane_xcm_transfer_dot(amount,multi_id_acc,multi_id,asset)?;
+					Self::vane_xcm_transfer_dot(amount,payer,multi_id_acc,payee_acc,asset)?;
 				},
 				Token::USDT => {
 					Err(Error::<T>::NotSupportedYet)?

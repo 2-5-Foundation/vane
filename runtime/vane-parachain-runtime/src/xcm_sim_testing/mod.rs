@@ -202,7 +202,7 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
-			(ALICE, 100_000_000),
+			(ALICE, 1_000_000),
 			(child_account_id(2000), 10),
 
 		],
@@ -230,6 +230,8 @@ pub type HubPalletBalances = pallet_balances::Pallet<asset_hub::Runtime>;
 
 #[cfg(test)]
 mod tests {
+
+use vane_xcm_transfer_system::{Token, Confirm};
 
 use super::*;
 
@@ -373,6 +375,110 @@ use super::*;
 	// This test checks transaction lifecycle from Relay Chain to Vane and back to Relay Chain with confirmations in place and fees token being deposited
 	#[test]
 	fn full_transaction_execution_and_confirmation_works(){
+
+		init_tracing();
+
+		MockNet::reset();
+
+		let amount = 100_000u128;
+		let asset_amount = 1000u128;
+
+		let alice_relay_origin = relay_chain::RuntimeOrigin::signed(ALICE);
+		let alice_vane_origin = parachain::RuntimeOrigin::signed(ALICE);
+		let bob_vane_origin = parachain::RuntimeOrigin::signed(BOB);
+
+		Relay::execute_with(||{
+			// Reserve transfer
+			assert_ok!(
+				relay_chain::XcmPallet::reserve_transfer_assets(
+					alice_relay_origin, 
+					bx!(Parachain(2000).into()), 
+					bx!(AccountId32 { network: None, id: ALICE.into() }.into()), 
+					bx!((Here, amount).into()), 
+					0
+				)
+			);
+		});
+
+
+		Vane::execute_with(||{
+			assert_eq!(
+				VanePalletAsset::balance(CurrencyId::DOT, ALICE),
+				amount
+			);
+
+			// check the fees transfered into alice account
+			println!("Fees in Alice: {}", VanePalletBalances::free_balance(ALICE));
+
+			// Tranfer to BOB
+			assert_ok!(
+				VaneXcmTransferSystem::vane_transfer(
+					alice_vane_origin.clone(), 
+					BOB, 
+					amount, 
+					Token::DOT, 
+					CurrencyId::DOT
+				)
+			);
+
+			// check the fees transfered into bob account
+			println!("Fees in Bob: {}", VanePalletBalances::free_balance(BOB));
+			println!("Fees in Alice: {}", VanePalletBalances::free_balance(ALICE));
+
+			// Confirmation phase
+			let txn_receipt = VaneXcmTransferSystem::get_payer_txn_receipt(ALICE, BOB).unwrap();
+			println!("{:?}",txn_receipt);
+			let multi_id = txn_receipt.multi_id;
+			let ref_no = txn_receipt.reference_no;
+			let amount = txn_receipt.amount;
+			//1. Bob confirmation
+
+			assert_ok!(
+				parachain::VaneXcmTransfer::vane_confirm(
+					bob_vane_origin, 
+					Confirm::Payee, 
+					ref_no.clone().to_vec(), 
+					amount, 
+					CurrencyId::DOT
+				)
+			);
+
+			// Check confirmation storage
+			let confirmed_signers = VaneXcmTransferSystem::get_confirmed_signers(ref_no.to_vec());
+			println!("Confirmed: {:?}", confirmed_signers);
+			// 2. Alice confirmation
+			assert_ok!(
+				parachain::VaneXcmTransfer::vane_confirm(
+					alice_vane_origin.clone(), 
+					Confirm::Payer, 
+					ref_no.to_vec(), 
+					amount, 
+					CurrencyId::DOT
+				)
+			);
+
+		});
+
+		Relay::execute_with(||{
+			// Check Alice amount
+			assert_eq!(
+				relay_chain::Balances::free_balance(ALICE),
+				900000
+			);
+
+			// check Bob account
+			assert_eq!(
+				relay_chain::Balances::free_balance(BOB),
+				90000
+			);
+			// Check Vane sovererign account
+			assert_eq!(
+				relay_chain::Balances::free_balance(child_account_id(2000)),
+				10_010
+			)
+
+		});
+
 
 	}
 

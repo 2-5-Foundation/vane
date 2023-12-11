@@ -15,20 +15,21 @@ use codec::{Encode,Decode};
 use sp_core::{crypto::{Ss58AddressFormatRegistry, Ss58Codec}};
 use sp_runtime::{MultiSigner};
 use vane_tanssi_runtime::CurrencyId::DOT;
+use vane_para_runtime::CurrencyId::DOT as vane_para_DOT;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
-pub type TanssiChainSpec = sc_service::GenericChainSpec<vane_tanssi_runtime::GenesisConfig, Extensions>;
+pub type TanssiChainSpec = sc_service::GenericChainSpec<vane_tanssi_runtime::RuntimeGenesisConfig, Extensions>;
 
-pub type ParachainChainSpec = sc_service::GenericChainSpec<vane_para_runtime::GenesisConfig, Extensions>;
+pub type ParachainChainSpec = sc_service::GenericChainSpec<vane_para_runtime::RuntimeGenesisConfig, Extensions>;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = staging_xcm::prelude::XCM_VERSION;
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-	TPublic::Pair::from_string(&format!("//{}", seed), None)
-		.expect("static values are valid; qed")
-		.public()
+    TPublic::Pair::from_string(&format!("//{}", seed), None)
+        .expect("static values are valid; qed")
+        .public()
 }
 
 // The extensions for the [`ChainSpec`].
@@ -153,7 +154,7 @@ pub fn parachain_config(para_id: ParaId, boot_nodes: Vec<String>) -> ParachainCh
 
 	ParachainChainSpec::from_genesis(
 		// Name
-		&format!("vane-network"),
+		&format!("vane network"),
 		// ID
 		&format!("vane-network"),
 		ChainType::Local,
@@ -243,8 +244,8 @@ fn genesis_config(
 ) -> (Option<vane_tanssi_runtime::RuntimeGenesisConfig>, Option<vane_para_runtime::RuntimeGenesisConfig>) {
 
 
-	let alice = get_from_seed::<sr25519::Public>("Alice");
-
+	let alice = get_account_id_from_seed::<sr25519::Public>("Alice");
+	let bob = get_account_id_from_seed::<sr25519::Public>("Bob");
 
 	let v_dot = "vDOT".as_bytes().to_vec();
 	let _v_usdt = "vUSDT".as_bytes().to_vec();
@@ -255,7 +256,7 @@ fn genesis_config(
 	let para_account = sp_runtime::AccountId32::from_ss58check(&sovererign_acount).unwrap();
 
 
-	 let chain_spec =match chain {
+	 let chain_spec = match chain {
 
 		ConfigChain::Tanssi => {
 
@@ -269,8 +270,9 @@ fn genesis_config(
 				balances: vane_tanssi_runtime::BalancesConfig {
 					balances: vec![
 						(para_account.clone(),100000000000),
-						(alice.into(),100000000)
-						]
+						(alice,100000000000), // This should be our key for managing changes in the runtime
+						
+					]
 				},
 				parachain_info: vane_tanssi_runtime::ParachainInfoConfig {
 					parachain_id: id,
@@ -321,17 +323,18 @@ fn genesis_config(
 				balances: vane_para_runtime::BalancesConfig {
 					balances: vec![
 						(para_account.clone(),100000000000),
-						(alice.into(),100000000)
-						]
+						(alice.into(),100000000000), // This should be our key for managing changes in the runtime
+						(bob,100000000000)
+					]
 				},
 
 				vane_assets: vane_para_runtime::VaneAssetsConfig {
 
-					metadata: vec![(DOT,v_dot.clone(), v_dot,10)],
+					metadata: vec![(vane_para_DOT,v_dot.clone(), v_dot,10)],
 
-					assets: vec![(DOT,para_account.clone(),true,1)],
+					assets: vec![(vane_para_DOT,para_account.clone(),true,1)],
 
-					accounts: vec![(DOT,para_account.clone(),0)]
+					accounts: vec![(vane_para_DOT,para_account.clone(),0)]
 
 				},
 

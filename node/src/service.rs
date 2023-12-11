@@ -10,7 +10,7 @@ use std::{sync::Arc, time::Duration};
 
 use {cumulus_client_cli::CollatorOptions, sc_network::config::FullNetworkConfiguration};
 // Local Runtime Types
-use vane_tanssi_runtime::{opaque::Block, RuntimeApi};
+use vane_para_runtime::{opaque::Block, RuntimeApi};
 
 // Cumulus Imports
 #[allow(deprecated)]
@@ -43,11 +43,11 @@ impl sc_executor::NativeExecutionDispatch for ParachainNativeExecutor {
 	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
 
 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		vane_tanssi_runtime::api::dispatch(method, data)
+		vane_para_runtime::api::dispatch(method, data)
 	}
 
 	fn native_version() -> sc_executor::NativeVersion {
-		vane_tanssi_runtime::native_version()
+		vane_para_runtime::native_version()
 	}
 }
 
