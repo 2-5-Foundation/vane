@@ -5,7 +5,7 @@ use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use sp_core::{sr25519, sr25519::Pair as PairType, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use xcm::prelude::*;
+use staging_xcm::prelude::*;
 
 
 use codec::{Encode,Decode};
@@ -18,7 +18,7 @@ pub type ChainSpec =
 	sc_service::GenericChainSpec<vane_para_runtime::GenesisConfig, Extensions>;
 
 /// The default XCM version to set in genesis config.
-const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
+const SAFE_XCM_VERSION: u32 = staging_xcm::prelude::XCM_VERSION;
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -245,7 +245,7 @@ fn testnet_genesis(
 
 		},
 
-		vane_xcm: vane_para_runtime::VaneXcmConfig {
+		vane_xcm_transfer_system: vane_para_runtime::VaneXcmTransferSystemConfig {
 			para_account: Some(para_account)
 		},
 
@@ -277,10 +277,6 @@ fn testnet_genesis(
 		aura: Default::default(),
 		aura_ext: Default::default(),
 		sudo: vane_para_runtime::SudoConfig { key: root_key },
-		council: vane_para_runtime::CouncilConfig {
-			phantom: std::marker::PhantomData,
-			members: endowed_accounts.iter().take(4).map(|acc| acc.clone()).collect::<Vec<_>>(),
-		},
 		parachain_system: Default::default(),
 		polkadot_xcm: vane_para_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),

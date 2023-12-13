@@ -18,8 +18,7 @@ bootnode = false
 
 [[parachains]]
 id = 2000
-chain = "vane"
-chain_spec_path = "./tmp1/vane.json"
+#chain_spec_path = "./tmp1/vane.json"
 cumulus_based = true
 onboard_as_parachain = true
 

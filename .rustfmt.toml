@@ -4,8 +4,8 @@ max_width = 100
 use_small_heuristics = "Max"
 
 # Imports
-imports_granularity = "Crate"
-reorder_imports = true
+#imports_granularity = "Crate"
+#reorder_imports = true
 
 # Consistency
 newline_style = "Unix"

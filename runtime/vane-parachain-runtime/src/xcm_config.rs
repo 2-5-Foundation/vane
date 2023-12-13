@@ -9,13 +9,15 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use pallet_xcm::XcmPassthrough;
-use polkadot_parachain::primitives::Sibling;
+use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
-use xcm::latest::prelude::*;
-use xcm_builder::{AccountId32Aliases, AliasForeignAccountId32, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic};
-use xcm_executor::XcmExecutor;
-use vane_primitive::{CurrencyId, MultiCurrencyAsset, MultiCurrencyConverter};
-use vane_xcm::orml_xcm_support::IsNativeConcrete;
+use staging_xcm::latest::prelude::*;
+use staging_xcm_builder::{AccountId32Aliases, AliasForeignAccountId32, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, CurrencyAdapter, DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic};
+use staging_xcm_executor::XcmExecutor;
+use vane_xcm_transfer_system::{CurrencyId, MultiCurrencyAsset, MultiCurrencyConverter};
+use staging_xcm_executor::traits::MatchesFungible;
+use sp_runtime::traits::{CheckedConversion, Convert};
+
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -23,6 +25,23 @@ parameter_types! {
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	pub UniversalLocation: InteriorMultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
 }
+
+pub struct IsNativeConcrete<CurrencyId, CurrencyIdConvert>(sp_std::marker::PhantomData<(CurrencyId, CurrencyIdConvert)>);
+impl<CurrencyId, CurrencyIdConvert, Amount> MatchesFungible<Amount> for IsNativeConcrete<CurrencyId, CurrencyIdConvert>
+	where
+		CurrencyIdConvert: Convert<MultiLocation, Option<CurrencyId>>,
+		Amount: TryFrom<u128>,
+{
+	fn matches_fungible(a: &MultiAsset) -> Option<Amount> {
+		if let (Fungible(ref amount), Concrete(ref location)) = (&a.fun, &a.id) {
+			if CurrencyIdConvert::convert(*location).is_some() {
+				return CheckedConversion::checked_from(*amount);
+			}
+		}
+		None
+	}
+}
+
 
 /// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM
@@ -37,7 +56,7 @@ pub type LocationToAccountId = (
 );
 
 /// Means for transacting assets on this chain.
-pub type LocalAssetTransactor =  vane_primitive::VaneMultiCurrencyAdapter<
+pub type LocalAssetTransactor =  vane_xcm_transfer_system::VaneMultiCurrencyAdapter<
 	MultiCurrencyAsset<Runtime>,
 	(), // handler for unknown assets
 	IsNativeConcrete<CurrencyId, MultiCurrencyConverter<Runtime>>,
@@ -45,7 +64,7 @@ pub type LocalAssetTransactor =  vane_primitive::VaneMultiCurrencyAdapter<
 	LocationToAccountId,
 	CurrencyId,
 	MultiCurrencyConverter<Runtime>,
-	(),
+	// HandlingFailedDeposits
 >;
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
@@ -124,13 +143,13 @@ pub type XcmOriginToCallOrigin = (
 );
 
 pub struct XcmConfig;
-impl xcm_executor::Config for XcmConfig {
+impl staging_xcm_executor::Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
 	type XcmSender = XcmRouter;
 	// How to withdraw and deposit an asset.
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = XcmOriginToCallOrigin;
-	type IsReserve = vane_primitive::VaneDerivedAssets; // Custom Asset matcher
+	type IsReserve = vane_xcm_transfer_system::VaneDerivedAssets; // Custom Asset matcher
 	type IsTeleporter = ();
 	type Aliasers = AliasForeignAccountId32<ParentPrefix>;
 	// Teleporting is disabled.
@@ -138,7 +157,7 @@ impl xcm_executor::Config for XcmConfig {
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 	type Trader =
-		UsingComponents<WeightToFee, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>;
+	UsingComponents<WeightToFee, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>;
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetLocker = ();
