@@ -162,13 +162,18 @@ sp-blockchain = {git = "https://github.com/moondance-labs/polkadot-sdk", branch 
 sp-timestamp = {git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.3.0" }
 substrate-build-script-utils = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.3.0" }
 
-
+vane-tanssi-runtime = { path = "runtime" }
 
 
 #------------------------------------------------------
 
 
 # Tanssi Node
+ccp-authorities-noting-inherent = { git = "https://github.com/moondance-labs/dancekit", branch = "tanssi-polkadot-v1.3.0", default-features = false }
+flume = "0.10.9"
+manual-xcm-rpc = { git = "https://github.com/moondance-labs/tanssi", branch = "master" }
+node-common = { git = "https://github.com/moondance-labs/tanssi", branch = "master" }
+tc-consensus = { git = "https://github.com/moondance-labs/tanssi", branch = "master" }
 
 async-io = "1.3"
 async-trait = "0.1"
@@ -183,7 +188,8 @@ container-chain-template-simple-runtime = { path = "runtime", features = [ "std"
 # Nimbus
 
 # Substrate
-
+pallet-tx-pause = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.3.0", default-features = false }
+pallet-root-testing = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.3.0", default-features = false }
 
 sc-consensus-manual-seal = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.3.0" }
 

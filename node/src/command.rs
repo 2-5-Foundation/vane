@@ -18,14 +18,16 @@ use {
     crate::{
         chain_spec,
         cli::{Cli, RelayChainCli, Subcommand},
-        service::new_partial,
+        service::{self, NodeConfig},
     },
-    container_chain_template_simple_runtime::Block,
+    vane_tanssi_runtime::Block,
     cumulus_client_cli::generate_genesis_block,
     cumulus_primitives_core::ParaId,
     frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE},
     log::{info, warn},
+    node_common::service::NodeBuilderConfig as _,
     parity_scale_codec::Encode,
+    polkadot_service::IdentifyVariant as _,
     sc_cli::{
         ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
         NetworkParams, Result, SharedParams, SubstrateCli,
@@ -37,9 +39,10 @@ use {
 };
 
 #[cfg(feature = "try-runtime")]
-use crate::service::ParachainNativeExecutor;
-#[cfg(feature = "try-runtime")]
-use try_runtime_cli::block_building_info::substrate_info;
+use {
+    crate::service::ParachainNativeExecutor, try_runtime_cli::block_building_info::substrate_info,
+};
+
 #[cfg(feature = "try-runtime")]
 const SLOT_DURATION: u64 = 12;
 
@@ -130,9 +133,11 @@ macro_rules! construct_async_run {
 	(|$components:ident, $cli:ident, $cmd:ident, $config:ident| $( $code:tt )* ) => {{
 		let runner = $cli.create_runner($cmd)?;
 		runner.async_run(|$config| {
-			let $components = new_partial(&$config)?;
+			let $components = NodeConfig::new_builder(&$config, None)?;
+            let inner = { $( $code )* };
+
 			let task_manager = $components.task_manager;
-			{ $( $code )* }.map(|v| (v, task_manager))
+			inner.map(|v| (v, task_manager))
 		})
 	}}
 }
@@ -165,7 +170,8 @@ pub fn run() -> Result<()> {
         }
         Some(Subcommand::CheckBlock(cmd)) => {
             construct_async_run!(|components, cli, cmd, config| {
-                Ok(cmd.run(components.client, components.import_queue))
+                let (_, import_queue) = service::import_queue(&config, &components);
+                Ok(cmd.run(components.client, import_queue))
             })
         }
         Some(Subcommand::ExportBlocks(cmd)) => {
@@ -180,7 +186,8 @@ pub fn run() -> Result<()> {
         }
         Some(Subcommand::ImportBlocks(cmd)) => {
             construct_async_run!(|components, cli, cmd, config| {
-                Ok(cmd.run(components.client, components.import_queue))
+                let (_, import_queue) = service::import_queue(&config, &components);
+                Ok(cmd.run(components.client, import_queue))
             })
         }
         Some(Subcommand::Revert(cmd)) => {
@@ -212,7 +219,7 @@ pub fn run() -> Result<()> {
         Some(Subcommand::ExportGenesisState(cmd)) => {
             let runner = cli.create_runner(cmd)?;
             runner.sync_run(|config| {
-                let partials = new_partial(&config)?;
+                let partials = NodeConfig::new_builder(&config, None)?;
                 cmd.run(&*config.chain_spec, &*partials.client)
             })
         }
@@ -237,7 +244,7 @@ pub fn run() -> Result<()> {
                     }
                 }
                 BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
-                    let partials = new_partial(&config)?;
+                    let partials = NodeConfig::new_builder(&config, None)?;
                     cmd.run(partials.client)
                 }),
                 #[cfg(not(feature = "runtime-benchmarks"))]
@@ -248,7 +255,7 @@ pub fn run() -> Result<()> {
                 )),
                 #[cfg(feature = "runtime-benchmarks")]
                 BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
-                    let partials = new_partial(&config)?;
+                    let partials = NodeConfig::new_builder(&config, None)?;
                     let db = partials.backend.expose_db();
                     let storage = partials.backend.expose_storage();
                     cmd.run(config, partials.client.clone(), db, storage)
@@ -316,7 +323,19 @@ pub fn run() -> Result<()> {
 					[RelayChainCli::executable_name()].iter().chain(cli.relay_chain_args.iter()),
 				);
 
-				let id = ParaId::from(para_id);
+                let extension = chain_spec::Extensions::try_get(&*config.chain_spec);
+                let relay_chain_id = extension.map(|e| e.relay_chain.clone());
+
+                let dev_service =
+					config.chain_spec.is_dev() || relay_chain_id == Some("dev-service".to_string());
+
+                let id = ParaId::from(para_id);
+
+                if dev_service {
+					return crate::service::start_dev_node(config, cli.run.sealing, id, hwbench).await
+                    .map_err(Into::into)
+				}
+
 
 				let parachain_account =
 					AccountIdConversion::<polkadot_primitives::AccountId>::into_account_truncating(&id);

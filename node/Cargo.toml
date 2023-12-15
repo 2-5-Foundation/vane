@@ -8,9 +8,12 @@ license = "GPL-3.0-only"
 version = "0.1.0"
 
 [dependencies]
+array-bytes = "6.1.0"
+hex = "0.4.3"
 async-io = { workspace = true }
 async-trait = { workspace = true }
 clap = { workspace = true, features = [ "derive" ] }
+flume = { workspace = true }
 futures = { workspace = true }
 jsonrpsee = { workspace = true, features = [ "server" ] }
 log = { workspace = true }
@@ -18,7 +21,11 @@ parity-scale-codec = { workspace = true }
 serde = { workspace = true, features = [ "derive" ] }
 
 # Local
-container-chain-template-simple-runtime = { workspace = true, features = [ "std" ] }
+ccp-authorities-noting-inherent = { workspace = true }
+vane-tanssi-runtime = { workspace = true, features = [ "std" ] }
+manual-xcm-rpc = { workspace = true }
+node-common = { workspace = true }
+tc-consensus = { workspace = true }
 
 # Nimbus
 nimbus-consensus = { workspace = true }
@@ -83,11 +90,8 @@ substrate-build-script-utils = { workspace = true }
 
 [features]
 default = []
-runtime-benchmarks = [
-	"container-chain-template-simple-runtime/runtime-benchmarks",
-	"polkadot-cli/runtime-benchmarks"
-]
+runtime-benchmarks = [ "vane-tanssi-runtime/runtime-benchmarks", "polkadot-cli/runtime-benchmarks" ]
 try-runtime = [
-	"container-chain-template-simple-runtime/try-runtime",
+	"vane-tanssi-runtime/try-runtime",
 	"try-runtime-cli/try-runtime",
  ]

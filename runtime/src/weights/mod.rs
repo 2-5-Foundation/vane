@@ -1,0 +1,1 @@
+pub mod vane_asset_weights;

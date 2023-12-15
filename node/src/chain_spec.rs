@@ -15,7 +15,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>.
 
 use {
-    container_chain_template_simple_runtime::{
+    vane_tanssi_runtime::{
         AccountId, MaintenanceModeConfig, MigrationsConfig, PolkadotXcmConfig, Signature,
     },
     cumulus_primitives_core::ParaId,
@@ -23,13 +23,21 @@ use {
     sc_network::config::MultiaddrWithPeerId,
     sc_service::ChainType,
     serde::{Deserialize, Serialize},
-    sp_core::{sr25519, Pair, Public},
+    
     sp_runtime::traits::{IdentifyAccount, Verify},
 };
 
+use sp_core::{sr25519, sr25519::Pair as PairType, Pair, Public};
+use sp_runtime::MultiSigner;
+use sp_core::{MaxEncodedLen,RuntimeDebug};
+
+use parity_scale_codec::{Encode,Decode};
+use sp_core::{crypto::{Ss58AddressFormatRegistry, Ss58Codec}};
+use vane_tanssi_runtime::CurrencyId::DOT;
+
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<
-    container_chain_template_simple_runtime::RuntimeGenesisConfig,
+    vane_tanssi_runtime::RuntimeGenesisConfig,
     Extensions,
 >;
 
@@ -41,7 +49,7 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 }
 
 /// Orcherstrator's parachain id
-const ORCHESTRATOR: ParaId = ParaId::new(1000);
+pub const ORCHESTRATOR: ParaId = ParaId::new(1000);
 
 /// The extensions for the [`ChainSpec`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
@@ -169,30 +177,44 @@ fn testnet_genesis(
     endowed_accounts: Vec<AccountId>,
     id: ParaId,
     root_key: AccountId,
-) -> container_chain_template_simple_runtime::RuntimeGenesisConfig {
-    container_chain_template_simple_runtime::RuntimeGenesisConfig {
-        system: container_chain_template_simple_runtime::SystemConfig {
-            code: container_chain_template_simple_runtime::WASM_BINARY
+) -> vane_tanssi_runtime::RuntimeGenesisConfig {
+
+
+    let alice = get_account_id_from_seed::<sr25519::Public>("Alice");
+	let bob = get_account_id_from_seed::<sr25519::Public>("Bob");
+
+	let v_dot = "vDOT".as_bytes().to_vec();
+	let _v_usdt = "vUSDT".as_bytes().to_vec();
+	let _v_usdc = "vUSDC".as_bytes().to_vec();
+
+	// Calculate parachain Soverign account id
+	let sovererign_acount = calculate_sovereign_account::<PairType>(id.into()).unwrap();
+	let para_account = sp_runtime::AccountId32::from_ss58check(&sovererign_acount).unwrap();
+
+
+    vane_tanssi_runtime::RuntimeGenesisConfig {
+        system: vane_tanssi_runtime::SystemConfig {
+            code: vane_tanssi_runtime::WASM_BINARY
                 .expect("WASM binary was not build, please build it!")
                 .to_vec(),
             ..Default::default()
         },
-        balances: container_chain_template_simple_runtime::BalancesConfig {
+        balances: vane_tanssi_runtime::BalancesConfig {
             balances: endowed_accounts
                 .iter()
                 .cloned()
                 .map(|k| (k, 1 << 60))
                 .collect(),
         },
-        parachain_info: container_chain_template_simple_runtime::ParachainInfoConfig {
+        parachain_info: vane_tanssi_runtime::ParachainInfoConfig {
             parachain_id: id,
             ..Default::default()
         },
         parachain_system: Default::default(),
-        sudo: container_chain_template_simple_runtime::SudoConfig {
+        sudo: vane_tanssi_runtime::SudoConfig {
             key: Some(root_key),
         },
-        authorities_noting: container_chain_template_simple_runtime::AuthoritiesNotingConfig {
+        authorities_noting: vane_tanssi_runtime::AuthoritiesNotingConfig {
             orchestrator_para_id: ORCHESTRATOR,
             ..Default::default()
         },
@@ -204,6 +226,20 @@ fn testnet_genesis(
         // This should initialize it to whatever we have set in the pallet
         polkadot_xcm: PolkadotXcmConfig::default(),
         transaction_payment: Default::default(),
+
+        vane_assets: vane_tanssi_runtime::VaneAssetsConfig {
+
+            metadata: vec![(DOT,v_dot.clone(), v_dot,10)],
+
+            assets: vec![(DOT,para_account.clone(),true,1)],
+
+            accounts: vec![(DOT,para_account.clone(),0)]
+
+        },
+        vane_xcm_transfer_system: vane_tanssi_runtime::VaneXcmTransferSystemConfig {
+            para_account: Some(para_account)
+        },
+        tx_pause: Default::default(),
     }
 }
 
@@ -223,4 +259,37 @@ pub fn pre_funded_accounts() -> Vec<AccountId> {
         get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
         get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
     ]
+}
+
+
+// helper functions
+#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen)]
+pub struct RococoId(u32);
+
+fn calculate_sovereign_account<Pair>(
+	para_id: u32
+) -> Result<String, Box<dyn std::error::Error>>
+	where
+		Pair: sp_core::Pair,
+		Pair::Public: Into<MultiSigner>,
+{
+	// Scale encoded para_id
+	let id = RococoId(para_id);
+	let encoded_id = hex::encode(id.encode());
+
+	// Prefix para or sibl
+	let prefix = hex::encode("para");
+
+	// Join both strings and the 0x at the beginning
+	let encoded_key = "0x".to_owned() + &prefix + &encoded_id;
+
+	// Fill the rest with 0s
+	let public_str = format!("{:0<width$}", encoded_key, width = (64 + 2) as usize);
+
+	// Convert hex public key to ss58 address
+	let public = array_bytes::hex2bytes(&public_str).expect("Failed to convert hex to bytes");
+	let public_key = Pair::Public::try_from(&public)
+		.map_err(|_| "Failed to construct public key from given hex")?;
+
+	Ok(public_key.to_ss58check_with_version(Ss58AddressFormatRegistry::SubstrateAccount.into()))
 }
