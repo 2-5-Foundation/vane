@@ -1,18 +1,22 @@
 use std::sync::Once;
+use integration_tests_common::constants::{polkadot,rococo,asset_hub_polkadot,asset_hub_kusama};
 use xcm_emulator::*;
-use integration_tests_common::{polkadot,asset_hub_polkadot,rococo};
 use polkadot_core_primitives::AccountPublic;
 use sp_core::{sr25519, sr25519::Pair as PairType, Pair, Public};
 use sp_core::crypto::Ss58AddressFormatRegistry;
 use sp_runtime::MultiSigner;
 use sp_runtime::traits::IdentifyAccount;
-use crate::{AuraId,Balance};
+use crate::{AuraId,Balance,Runtime,AuraExt,XcmpQueue,DmpQueue,ParachainInfo,VaneAssets,PolkadotXcm,Balances,VaneXcmTransferSystem};
 use sp_core::crypto::Ss58Codec;
 use sp_runtime::BuildStorage;
-use xcm_executor::traits::ConvertLocation;
+use staging_xcm_executor::traits::ConvertLocation;
 use frame_support::traits::UnfilteredDispatchable;
+use frame_support::pallet_prelude::*;
+use staging_xcm::prelude::*;
+use cumulus_primitives_core::AccountId32;
 
-const SAFE_XCM_VERSION: u32 = XCM_VERSION;
+
+const SAFE_XCM_VERSION: u32 =  crate::XCM_VERSION;
 
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
 	TPublic::Pair::from_string(&format!("//{}", seed), None)
@@ -34,7 +38,7 @@ pub fn template_session_keys(keys: AuraId) -> crate::SessionKeys {
 	crate::SessionKeys { aura: keys }
 }
 
-#[derive(Encode,Decode)]
+#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct RococoId(u32);
 
 fn calculate_sovereign_account<Pair>(
@@ -107,14 +111,50 @@ pub mod accounts {
 	}
 }
 
+
+// Relay Network Implementation
+
+decl_test_relay_chains! {
+	#[api_version(5)]
+	pub struct Polkadot {
+		genesis = polkadot::genesis(),
+		on_init = (),
+		runtime = polkadot_runtime,
+		core = {
+			MessageProcessor: DefaultMessageProcessor<Polkadot>,
+			SovereignAccountOf: polkadot_runtime::xcm_config::SovereignAccountOf,
+		},
+		pallets = {
+			XcmPallet: polkadot_runtime::XcmPallet,
+			Balances: polkadot_runtime::Balances,
+			Hrmp: polkadot_runtime::Hrmp,
+		}
+	},
+	#[api_version(5)]
+	pub struct Rococo {
+		genesis = rococo::genesis(),
+		on_init = (),
+		runtime = rococo_runtime,
+		core = {
+			MessageProcessor: DefaultMessageProcessor<Rococo>,
+			SovereignAccountOf: rococo_runtime::xcm_config::LocationConverter, //TODO: rename to SovereignAccountOf,
+		},
+		pallets = {
+			XcmPallet: rococo_runtime::XcmPallet,
+			Sudo: rococo_runtime::Sudo,
+			Balances: rococo_runtime::Balances,
+		}
+	}
+}
+
+
+
 pub use vane_parachain::*;
 
 pub mod vane_parachain {
 	use super::*;
-	use integration_tests_common::Storage;
-	use sp_core::crypto::Ss58Codec;
-	use vane_primitive::CurrencyId;
-	use vane_primitive::CurrencyId::DOT;
+	use crate::xcm_eml_testing::Storage;	use sp_core::crypto::Ss58Codec;
+	use vane_xcm_transfer_system::CurrencyId::*;
 	use crate::{EXISTENTIAL_DEPOSIT,Balance};
 	use crate::xcm_eml_testing::accounts::{ALICE, invulnerables, sudo_key};
 
@@ -144,11 +184,10 @@ pub mod vane_parachain {
 			},
 
 			balances: crate::BalancesConfig {
-				balances: accounts::init_balances()
-					.iter()
-					.cloned()
-					.map(|k| (k, ED * 4096))
-					.collect(),
+				balances: vec![
+					(para_account.clone(),10000000000),
+					(alice.clone(),10000000000)
+				]
 			},
 
 			vane_assets: crate::VaneAssetsConfig {
@@ -161,7 +200,7 @@ pub mod vane_parachain {
 
 			},
 
-			vane_xcm: crate::VaneXcmConfig {
+			vane_xcm_transfer_system: crate::VaneXcmTransferSystemConfig {
 				para_account: Some(para_account)
 			},
 
@@ -204,148 +243,97 @@ pub mod vane_parachain {
 
 }
 
-decl_test_relay_chains! {
-	#[api_version(5)]
-	pub struct PolkadotMain {
-		genesis = polkadot::genesis(),
-		on_init = (),
-		runtime = {
-			Runtime: polkadot_runtime::Runtime,
-			RuntimeOrigin: polkadot_runtime::RuntimeOrigin,
-			RuntimeCall: polkadot_runtime::RuntimeCall,
-			RuntimeEvent: polkadot_runtime::RuntimeEvent,
-			MessageQueue: polkadot_runtime::MessageQueue,
-			XcmConfig: polkadot_runtime::xcm_config::XcmConfig,
-			SovereignAccountOf: polkadot_runtime::xcm_config::SovereignAccountOf,
-			System: polkadot_runtime::System,
-			Balances: polkadot_runtime::Balances,
-		},
-		pallets_extra = {
-			XcmPallet: polkadot_runtime::XcmPallet,
-		}
-	},
-	#[api_version(5)]
-	pub struct Rococo {
-		genesis = rococo::genesis(),
-		on_init = (),
-		runtime = {
-			Runtime: rococo_runtime::Runtime,
-			RuntimeOrigin: rococo_runtime::RuntimeOrigin,
-			RuntimeCall: rococo_runtime::RuntimeCall,
-			RuntimeEvent: rococo_runtime::RuntimeEvent,
-			MessageQueue: rococo_runtime::MessageQueue,
-			XcmConfig: rococo_runtime::xcm_config::XcmConfig,
-			SovereignAccountOf: rococo_runtime::xcm_config::LocationConverter, //TODO: rename to SovereignAccountOf,
-			System: rococo_runtime::System,
-			Balances: rococo_runtime::Balances,
-		},
-		pallets_extra = {
-			XcmPallet: rococo_runtime::XcmPallet,
-			Sudo: rococo_runtime::Sudo,
-		}
-	}
-}
-
 decl_test_parachains!(
-		pub struct VaneParachain {
-		genesis = vane_parachain::genesis(),
-		on_init = (),
-		runtime = {
-			Runtime: crate::Runtime,
-			RuntimeOrigin: crate::RuntimeOrigin,
-			RuntimeCall: crate::RuntimeCall,
-			RuntimeEvent: crate::RuntimeEvent,
-			XcmpMessageHandler: crate::XcmpQueue,
-			DmpMessageHandler: crate::DmpQueue,
-			LocationToAccountId: crate::xcm_config::LocationToAccountId,
-			System: crate::System,
-			Balances: crate::Balances,
-			ParachainSystem: crate::ParachainSystem,
-			ParachainInfo: crate::ParachainInfo,
-		},
-		pallets_extra = {
-			PolkadotXcm: crate::PolkadotXcm,
-			VaneAssets: crate::VaneAssets,
-			VaneXcm: crate::VaneXcm,
-			VanePayment: crate::VanePayment,
 
+	pub struct VanePolkadot {
+		genesis = vane_parachain::genesis(),
+		on_init = {
+			AuraExt::on_initialize(1);
+		},
+		runtime = crate,
+		core = {
+			XcmpMessageHandler: XcmpQueue,
+			DmpMessageHandler: DmpQueue,
+			LocationToAccountId: crate::xcm_config::LocationToAccountId,
+			ParachainInfo: ParachainInfo,
+		},
+		pallets = {
+			PolkadotXcm: PolkadotXcm,
+			VaneAssets: VaneAssets,
+			Balances: Balances,
+			VaneXcmTransferSystem: VaneXcmTransferSystem,
+		}
+	
+	},
+	pub struct VaneRococo {
+		genesis = vane_parachain::genesis(),
+		on_init = {
+			AuraExt::on_initialize(1);
+		},
+		runtime = crate,
+		core = {
+			XcmpMessageHandler: XcmpQueue,
+			DmpMessageHandler: DmpQueue,
+			LocationToAccountId: crate::xcm_config::LocationToAccountId,
+			ParachainInfo: ParachainInfo,
+		},
+		pallets = {
+			PolkadotXcm: PolkadotXcm,
+			VaneAssets: VaneAssets,
+			Balances: Balances,
+			VaneXcmTransferSystem: VaneXcmTransferSystem,
 		}
 	},
-		pub struct VaneRococo {
-		genesis = vane_parachain::genesis(),
-		on_init = (),
-		runtime = {
-			Runtime: crate::Runtime,
-			RuntimeOrigin: crate::RuntimeOrigin,
-			RuntimeCall: crate::RuntimeCall,
-			RuntimeEvent: crate::RuntimeEvent,
-			XcmpMessageHandler: crate::XcmpQueue,
-			DmpMessageHandler: crate::DmpQueue,
-			LocationToAccountId: crate::xcm_config::LocationToAccountId,
-			System: crate::System,
-			Balances: crate::Balances,
-			ParachainSystem: crate::ParachainSystem,
-			ParachainInfo: crate::ParachainInfo,
-		},
-		pallets_extra = {
-			PolkadotXcm: crate::PolkadotXcm,
-			VaneAssets: crate::VaneAssets,
-			VaneXcm: crate::VaneXcm,
-			VanePayment: crate::VanePayment,
 
-		}
-	},
+	// AssetHubs
 	pub struct AssetHubPolkadot {
 		genesis = asset_hub_polkadot::genesis(),
-		on_init = (),
-		runtime = {
-			Runtime: asset_hub_polkadot_runtime::Runtime,
-			RuntimeOrigin: asset_hub_polkadot_runtime::RuntimeOrigin,
-			RuntimeCall: asset_hub_polkadot_runtime::RuntimeCall,
-			RuntimeEvent: asset_hub_polkadot_runtime::RuntimeEvent,
+		on_init = {
+			asset_hub_polkadot_runtime::AuraExt::on_initialize(1);
+		},
+		runtime = asset_hub_polkadot_runtime,
+		core = {
 			XcmpMessageHandler: asset_hub_polkadot_runtime::XcmpQueue,
 			DmpMessageHandler: asset_hub_polkadot_runtime::DmpQueue,
 			LocationToAccountId: asset_hub_polkadot_runtime::xcm_config::LocationToAccountId,
-			System: asset_hub_polkadot_runtime::System,
-			Balances: asset_hub_polkadot_runtime::Balances,
-			ParachainSystem: asset_hub_polkadot_runtime::ParachainSystem,
 			ParachainInfo: asset_hub_polkadot_runtime::ParachainInfo,
 		},
-		pallets_extra = {
+		pallets = {
 			PolkadotXcm: asset_hub_polkadot_runtime::PolkadotXcm,
 			Assets: asset_hub_polkadot_runtime::Assets,
+			Balances: asset_hub_polkadot_runtime::Balances,
 		}
 	},
+
 	pub struct AssetHubRococo {
-		genesis = asset_hub_polkadot::genesis(),
-		on_init = (),
-		runtime = {
-			Runtime: asset_hub_polkadot_runtime::Runtime,
-			RuntimeOrigin: asset_hub_polkadot_runtime::RuntimeOrigin,
-			RuntimeCall: asset_hub_polkadot_runtime::RuntimeCall,
-			RuntimeEvent: asset_hub_polkadot_runtime::RuntimeEvent,
-			XcmpMessageHandler: asset_hub_polkadot_runtime::XcmpQueue,
-			DmpMessageHandler: asset_hub_polkadot_runtime::DmpQueue,
-			LocationToAccountId: asset_hub_polkadot_runtime::xcm_config::LocationToAccountId,
-			System: asset_hub_polkadot_runtime::System,
-			Balances: asset_hub_polkadot_runtime::Balances,
-			ParachainSystem: asset_hub_polkadot_runtime::ParachainSystem,
-			ParachainInfo: asset_hub_polkadot_runtime::ParachainInfo,
+		genesis = asset_hub_kusama::genesis(),
+		on_init = {
+			asset_hub_polkadot_runtime::AuraExt::on_initialize(1);
 		},
-		pallets_extra = {
-			PolkadotXcm: asset_hub_polkadot_runtime::PolkadotXcm,
-			Assets: asset_hub_polkadot_runtime::Assets,
+		runtime = asset_hub_kusama_runtime,
+		core = {
+			XcmpMessageHandler: asset_hub_kusama_runtime::XcmpQueue,
+			DmpMessageHandler: asset_hub_kusama_runtime::DmpQueue,
+			LocationToAccountId: asset_hub_kusama_runtime::xcm_config::LocationToAccountId,
+			ParachainInfo: asset_hub_kusama_runtime::ParachainInfo,
+		},
+		pallets = {
+			PolkadotXcm: asset_hub_kusama_runtime::PolkadotXcm,
+			Assets: asset_hub_kusama_runtime::Assets,
 		}
-	}
+	},
+
 );
+
+
 
 decl_test_networks!(
 	// Polkadot
 		pub struct PolkadotNet {
-		relay_chain = PolkadotMain,
+		relay_chain = Polkadot,
 		parachains = vec![
 			AssetHubPolkadot,
-			VaneParachain,
+			VanePolkadot,
 		],
 		bridge = ()
 	},
@@ -360,289 +348,156 @@ decl_test_networks!(
 		bridge = ()
 	}
 );
-
+//
+//
+// static INIT: Once = Once::new();
+// pub fn init_tracing() {
+// 	INIT.call_once(|| {
+// 		// Add test tracing (from sp_tracing::init_for_tests()) but filtering for xcm logs only
+// 		let _ = tracing_subscriber::fmt()
+// 			//.with_max_level(tracing::Level::TRACE)
+// 			//.with_env_filter("xcm=trace,system::events=trace") // Comment out this line to see all traces
+// 			.with_test_writer()
+// 			.init();
+// 	});
+// }
+//
+//
+// // Tests
+//
+// mod tests {
+// 	use super::*;
+// 	use frame_support::assert_ok;
+// 	use frame_support::dispatch::RawOrigin;
+// 	use hex_literal::hex;
+// 	use staging_xcm::latest::OriginKind::SovereignAccount;
+// 	use xcm_emulator::{Parachain, TestExt};
+// 	use crate::xcm_eml_testing::{VaneParachain,PolkadotMain};
+// 	use crate::xcm_eml_testing::accounts::{ALICE,BOB,CHARLIE};
+// 	use staging_xcm::VersionedXcm;
+// 	use sp_tracing;
+// 	use vane_primitive::CurrencyId::DOT;
+//
+// 	#[test]
+// 	fn relay_chain_n_vane_remote_execution_works() {
+//
+//
+// 		// Alice --> RC                                           RC
+// 		//           -  (Reserve transfer)                         ^
+// 		//           ˯                                             -
+// 		//      Reserve Chain                                 Reserve Chain
+// 		//           -  (Deposit Equivalent)                       ^
+// 		//           ˯                                             -
+// 		//         Vane  --------> MultiSig(Alice,Bob) --------> VaneXcm
+// 		//           -        									   ^
+// 		//           - ----------> Confirmation                    -
+// 		//                          -                              -
+// 		//                          --->Ms(A,B)--->Bob -------------
+// 	}
+// 	#[test]
+// 	fn native_reserve_transfer_reserve_works() {
+//
+// 	}
+// }
 
 static INIT: Once = Once::new();
-pub fn init_tracing() {
+fn init_tracing() {
 	INIT.call_once(|| {
 		// Add test tracing (from sp_tracing::init_for_tests()) but filtering for xcm logs only
 		let _ = tracing_subscriber::fmt()
-			//.with_max_level(tracing::Level::TRACE)
-			//.with_env_filter("xcm=trace,system::events=trace") // Comment out this line to see all traces
+			.with_max_level(tracing::Level::TRACE)
+			.with_env_filter("xcm=trace,system::events=trace") // Comment out this line to see all traces
 			.with_test_writer()
 			.init();
 	});
 }
 
-
-// Tests
-
+#[cfg(test)]
 mod tests {
-	use super::*;
-	use frame_support::assert_ok;
-	use frame_support::dispatch::RawOrigin;
-	use hex_literal::hex;
-	use xcm::latest::OriginKind::SovereignAccount;
-	use xcm_emulator::{Parachain, TestExt};
-	use vane_payment::helper::Token;
-	use crate::xcm_eml_testing::{VaneParachain,PolkadotMain};
-	use crate::xcm_eml_testing::accounts::{ALICE,BOB,CHARLIE};
-	use xcm::VersionedXcm;
-	use sp_tracing;
-	use vane_payment::Confirm;
-	use vane_primitive::CurrencyId::DOT;
+	use cumulus_primitives_core::Junctions::Here;
+use integration_tests_common::constants::accounts::ALICE;
+use vane_xcm_transfer_system::CurrencyId;
 
+use super::*;
+
+	
+
+	// This test check that the Xcm Reserve Transfered Dot token from Relay Chain being deposited to the multi_id form between Alice & Bob
+	// And all the necessary storage entities are taking place.
+	// This functionality of directly depositing into multi id can be found in the implemented AssetTransactor::transfer.
+	// AssetTransactor is responsible for handling token behaviour inside destination chain ( Note: check in staging_xcm_executor)
 	#[test]
-	fn relay_chain_n_vane_remote_execution_works(){
+	fn transfer_dot_from_relay_to_vane_deposits_into_multi_id_works(){
+
+	}
 
 
-		// Alice --> RC                                           RC
-		//           -  (Reserve transfer)                         ^
-		//           ˯                                             -
-		//      Reserve Chain                                 Reserve Chain
-		//           -  (Deposit Equivalent)                       ^
-		//           ˯                                             -
-		//         Vane  --------> MultiSig(Alice,Bob) --------> VaneXcm
-		//           -        									   ^
-		//           - ----------> Confirmation                    -
-		//                          -                              -
-		//                          --->Ms(A,B)--->Bob -------------
+	// Acting like bridging the tokens from Alice's relay account into Alice's vane account
+	#[test]
+	fn reserve_transfer_from_relay_into_sender_account(){
 
-
-		// Test RelayChain
-		PolkadotMain::execute_with(||{
-
-			sp_tracing::init_for_tests();
-
-			let sovererign_acount = calculate_sovereign_account::<PairType>(PARA_ID.into()).unwrap();
-			let para_account = sp_runtime::AccountId32::from_ss58check(&sovererign_acount).unwrap();
-
-			type PolkadotOrigin = <PolkadotMain as RelayChain>::RuntimeOrigin;
-			type PolkadotEvents = <PolkadotMain as RelayChain>::RuntimeEvent;
-			type PolkadotCall = <PolkadotMain as RelayChain>::RuntimeCall;
-			type PolkadotSystem = <PolkadotMain as RelayChain>::System;
-			type VaneOrigin = <VaneParachain as Parachain>::RuntimeOrigin;
-			type VaneCall = <VaneParachain as Parachain>::RuntimeCall;
+		sp_tracing::init_for_tests();
 
 
 
-			let alice = get_account_id_from_seed::<sr25519::Public>(ALICE);
-			let bob = get_account_id_from_seed::<sr25519::Public>(BOB);
+		Rococo::execute_with(||{
 
-			let amount = 100_000_000_000u128;
+			type RococoPalletSystem = <Rococo as Chain>::System;
 
-			// Research on using XCM and send a message to AssetHub and dispatch a uniques pallet mint fn to mint a custom nft to parachain_account
+			let alice_account = get_account_id_from_seed::<sr25519::Public>(ALICE);
+
+			let alice_relay_origin = <Rococo as Chain>::RuntimeOrigin::signed(alice_account.clone());
+			
+			let vane_destination = Rococo::child_location_of(VaneRococo::para_id());
+			let amount = 100_000_000_000_000_000u128;
+			let asset_amount = 1000u128;
+
+
 			assert_ok!(
-				<PolkadotMain as RelayChain>::Balances::transfer_keep_alive(
-					PolkadotOrigin::signed(alice.clone()),
-					para_account.clone().into(),
-					amount.into()
+				<Rococo as RococoPallet>::XcmPallet::reserve_transfer_assets(
+					alice_relay_origin,
+					bx!(vane_destination.into()),
+					bx!(AccountId32 { network: None, id: alice_account.into() }.into()),
+					bx!((Here, amount).into()),
+					0,
 				)
 			);
 
-			assert_eq!(
-				<PolkadotMain as RelayChain>::Balances::free_balance(para_account),
-				amount
-			);
 
-			let v_dot = MultiLocation{
-				parents: 0,
-				interior: X2(PalletInstance(10),GeneralIndex(1)).into()
-			};
-
-			let vane_xcm_transfer_call = VaneCall::VaneXcm(vane_xcm::Call::vane_transfer {
-				payee: bob.into(),
-				amount,
-				currency: Token::DOT,
-				asset_id: DOT,
-			});
-
-			let encoded_call = vane_xcm_transfer_call.encode().to_vec();
-
-			println!(" Encoded Transfer Call : {:?}",encoded_call);
-
-			let message = Xcm::<()>(vec![
-				DescendOrigin(AccountId32 {network: None, id: alice.clone().into() }.into()), // look into remote derived accounts
-				Transact {
-					origin_kind: SovereignAccount,
-					require_weight_at_most: Weight::from_parts(1_000_000_000,1024*1024),
-					call: vane_xcm_transfer_call.encode().into(),
-				}
-			]);
-
-			// test dispatching xcm
-			assert_ok!(
-				<PolkadotMain as PolkadotMainPallet>::XcmPallet::send(
-					PolkadotOrigin::signed(alice),
-					bx!(X1(Parachain(PARA_ID)).into()),
-					bx!(VersionedXcm::V3(message.clone()))
-				)
-			);
-
-			PolkadotSystem::events().iter().for_each(|e| println!("{:#?}",e));
+			RococoPalletSystem::events().iter().for_each(|e| println!("{:#?} \n",e));
 
 		});
 
-		VaneParachain::execute_with(||{
+		VaneRococo::execute_with(||{
 
-			type VaneOrigin = <VaneParachain as Parachain>::RuntimeOrigin;
-			type VaneEvents = <VaneParachain as Parachain>::RuntimeEvent;
-			type VaneCall = <VaneParachain as Parachain>::RuntimeCall;
-			type VaneSystem = <VaneParachain as Parachain>::System;
+			let alice_account = get_account_id_from_seed::<sr25519::Public>(ALICE);
 
-			let alice = get_account_id_from_seed::<sr25519::Public>(ALICE);
-			let bob = get_account_id_from_seed::<sr25519::Public>(BOB);
-
-			let amount = 100_000_000_000u128;
+			let alice_relay_origin = <Rococo as Chain>::RuntimeOrigin::signed(alice_account.clone());
+			let amount = 100_000_000_000_000_000u128;
 
 
-			//
-			// let vane_xcm_transfer_call = VaneCall::VaneXcm(vane_xcm::Call::vane_transfer {
-			// 	payee: bob.into(),
-			// 	amount,
-			// 	currency: Token::Dot,
-			// 	asset_id: v_dot,
-			// });
-			//
-			// // test dispatching
-			// assert_ok!(
-			// 	vane_xcm_transfer_call.dispatch_bypass_filter(VaneOrigin::signed(alice.clone()))
-			// );
+			// print the events
+			type VanePalletSystem = <VaneRococo as Chain>::System;
 
-			// assert_ok!(
-			// 	<VaneParachain as VaneParachainPallet>::VaneXcm::test_storing(
-			// 		VaneOrigin::signed(alice.clone()),
-			// 		alice,
-			// 		30
-			// 	)
-			// );
+			assert_eq!(
+				<VaneRococo as VaneRococoPallet>::VaneAssets::balance(CurrencyId::DOT,alice_account),
+				99999999968000000
+			);
 
-
-			VaneSystem::events().iter().for_each(|e| println!("{:#?}",e));
+			VanePalletSystem::events().iter().for_each(|e| println!("{:#?} \n",e));
 		})
 	}
 
+	// This test checks transaction lifecycle from Relay Chain to Vane and back to Relay Chain with confirmations in place and fees token being deposited
 	#[test]
-	fn native_reserve_transfer_reserve_works(){
+	fn full_transaction_execution_and_confirmation_works(){
 
-		PolkadotMain::execute_with(|| {
-
-			sp_tracing::init_for_tests();
-
-			let alice = get_account_id_from_seed::<sr25519::Public>(ALICE);
-			let bob = get_account_id_from_seed::<sr25519::Public>(BOB);
-
-			let amount = 1_000_000_000_000u128;
-
-			type PolkadotOrigin = <PolkadotMain as RelayChain>::RuntimeOrigin;
-			type PolkadotEvents = <PolkadotMain as RelayChain>::RuntimeEvent;
-			type PolkadotCall = <PolkadotMain as RelayChain>::RuntimeCall;
-			type PolkadotSystem = <PolkadotMain as RelayChain>::System;
-
-			assert_ok!(
-				<PolkadotMain as PolkadotMainPallet>::XcmPallet::reserve_transfer_assets(
-					PolkadotOrigin::signed(alice.clone()),
-					bx!(X1(Parachain(PARA_ID)).into()),
-					bx!(AccountId32 { network: None, id: alice.into() }.into()),
-					bx!((Here, amount).into()),
-					0
-				)
-			);
-
-			PolkadotSystem::events().iter().for_each(|e| println!("{:#?}",e));
-
-		});
-
-		println!("Vane Area \n");
-
-		VaneParachain::execute_with(||{
-			//let amount = 1_000_000u128;
-
-			let alice = get_account_id_from_seed::<sr25519::Public>(ALICE);
-			let bob = get_account_id_from_seed::<sr25519::Public>(BOB);
+	}
 
 
-			type VaneOrigin = <VaneParachain as Parachain>::RuntimeOrigin;
-			type VaneEvents = <VaneParachain as Parachain>::RuntimeEvent;
-			type VaneCall = <VaneParachain as Parachain>::RuntimeCall;
-			type VaneSystem = <VaneParachain as Parachain>::System;
-
-			VaneSystem::events().iter().for_each(|e| println!("{:#?} \n",e));
-
-			assert_eq!(
-				<VaneParachain as VaneParachainPallet>::VaneAssets::balance(DOT,alice.clone()),
-				999959040000
-			);
-
-			// Vane transfer internally
-			println!("Vane Transfer Internaly \n");
-
-			assert_ok!(
-				<VaneParachain as VaneParachainPallet>::VaneXcm::vane_transfer(
-					VaneOrigin::signed(alice.clone()),
-					bob.clone().into(),
-					999959040000,
-					Token::DOT,
-					DOT
-				)
-			);
-
-			VaneSystem::events().iter().for_each(|e| println!("{:#?} \n",e));
-
-			// Confirmation zone
-			// Bob -> Alice
-			println!(" Confirmation zone \n");
-
-			//Fetch the reference Id
-			let receipt = <VaneParachain as VaneParachainPallet>::VaneXcm::read_payer_receipt(
-				VaneOrigin::signed(alice.clone()),
-				bob.clone()
-			);
-
-			println!(" Receipt: {:?} \n",receipt);
-
-			// Bob Vane account
-			println!("Vane Bob: {:?}", bob.clone());
-
-			assert_ok!(
-				<VaneParachain as VaneParachainPallet>::VaneXcm::vane_confirm(
-					VaneOrigin::signed(bob.clone()),
-					Confirm::Payee,
-					receipt.clone().unwrap().reference_no.to_vec(),
-					receipt.clone().unwrap().amount,
-					DOT
-				)
-			);
-
-			assert_ok!(
-				<VaneParachain as VaneParachainPallet>::VaneXcm::vane_confirm(
-					VaneOrigin::signed(alice.clone()),
-					Confirm::Payer,
-					receipt.clone().unwrap().reference_no.to_vec(),
-					receipt.unwrap().amount,
-					DOT
-				)
-			);
-
-			println!("Vane last events \n ");
-
-			VaneSystem::events().iter().for_each(|e| println!("{:#?} \n",e));
-
-		});
-
-		PolkadotMain::execute_with(||{
-			type PolkadotSystem = <PolkadotMain as RelayChain>::System;
-
-			let alice = get_account_id_from_seed::<sr25519::Public>(ALICE);
-			let bob = get_account_id_from_seed::<sr25519::Public>(BOB);
-
-			println!(" RelayChain last events \n");
-
-			// print relay Bob account
-			println!(" Relay Bob: {:?} \n",bob);
-
-			PolkadotSystem::events().iter().for_each(|e| println!("{:#?}",e));
-		})
+	// This test checks reverting txn, sends xcm message to refund the tokens being held in vane soverign account.
+	#[test]
+	fn reverting_works(){
 
 	}
 }

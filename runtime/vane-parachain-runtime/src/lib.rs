@@ -5,6 +5,9 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+#[cfg(test)]
+mod xcm_eml_testing;
+
 
 mod weights;
 pub mod xcm_config;

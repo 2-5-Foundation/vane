@@ -26,21 +26,21 @@ use frame_system::EnsureRoot;
 use sp_core::{ConstU32, H256};
 use sp_runtime::{traits::IdentityLookup, AccountId32};
 
-use polkadot_parachain::primitives::Id as ParaId;
+use polkadot_parachain_primitives::primitives::Id as ParaId;
 use polkadot_runtime_parachains::{
 	configuration,
 	inclusion::{AggregateMessageOrigin, UmpQueueId},
 	origin, shared,
 };
-use xcm::latest::prelude::*;
-use xcm_builder::{
+use staging_xcm::latest::prelude::*;
+use staging_xcm_builder::{
 	Account32Hash, AccountId32Aliases, AllowUnpaidExecutionFrom, AsPrefixedGeneralIndex,
 	ChildParachainAsNative, ChildParachainConvertsVia, ChildSystemParachainAsSuperuser,
 	ConvertedConcreteId, CurrencyAdapter as XcmCurrencyAdapter, FixedRateOfFungible,
 	FixedWeightBounds, IsConcrete, NoChecking, NonFungiblesAdapter, SignedAccountId32AsNative,
 	SignedToAccountId32, SovereignSignedViaLocation,
 };
-use xcm_executor::{traits::JustTry, Config, XcmExecutor};
+use staging_xcm_executor::{traits::JustTry, Config, XcmExecutor};
 
 pub type AccountId = AccountId32;
 pub type Balance = u128;
@@ -97,6 +97,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = ConstU32<0>;
 }
 
+
 impl shared::Config for Runtime {}
 
 impl configuration::Config for Runtime {
@@ -119,7 +120,6 @@ pub type LocationToAccountId = (
 
 pub type LocalAssetTransactor = (
 	XcmCurrencyAdapter<Balances, IsConcrete<TokenLocation>, LocationToAccountId, AccountId, ()>
-	
 );
 
 type LocalOriginConverter = (
@@ -170,17 +170,12 @@ impl Config for XcmConfig {
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
-#[cfg(feature = "runtime-benchmarks")]
-parameter_types! {
-	pub ReachableDest: Option<MultiLocation> = Some(Parachain(1).into());
-}
-
 impl pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type SendXcmOrigin = xcm_builder::EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+	type SendXcmOrigin = staging_xcm_builder::EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	// Anyone can execute XCM messages locally...
-	type ExecuteXcmOrigin = xcm_builder::EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+	type ExecuteXcmOrigin = staging_xcm_builder::EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmExecuteFilter = Nothing;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmTeleportFilter = Everything;
@@ -199,8 +194,6 @@ impl pallet_xcm::Config for Runtime {
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
 	type WeightInfo = pallet_xcm::TestWeightInfo;
-	#[cfg(feature = "runtime-benchmarks")]
-	type ReachableDest = ReachableDest;
 	type AdminOrigin = EnsureRoot<AccountId>;
 }
 
@@ -233,9 +226,9 @@ impl ProcessMessage for MessageProcessor {
 		let para = match origin {
 			AggregateMessageOrigin::Ump(UmpQueueId::Para(para)) => para,
 		};
-		xcm_builder::ProcessXcmMessage::<
+		staging_xcm_builder::ProcessXcmMessage::<
 			Junction,
-			xcm_executor::XcmExecutor<XcmConfig>,
+			staging_xcm_executor::XcmExecutor<XcmConfig>,
 			RuntimeCall,
 		>::process_message(message, Junction::Parachain(para.into()), meter, id)
 	}

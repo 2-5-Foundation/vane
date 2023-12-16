@@ -536,7 +536,7 @@ use sp_std::ops::{Mul, Sub};
 				pallet_balances::Call::<T,()>::transfer_keep_alive {
 					dest: T::Lookup::unlookup(receiver.clone()), 
 					value: fees_amount 
-				}.dispatch_bypass_filter(para_account_origin).unwrap();
+				}.dispatch_bypass_filter(para_account_origin).unwrap(); // Error handling
 
 				let _ = <pallet_assets::Pallet<T>>::deposit(currency_id.into(), receiver, amount, Precision::Exact)?;
 				Ok(())
