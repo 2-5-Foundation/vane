@@ -149,7 +149,11 @@ mod pallet{
 
 		MultiSigCallFailed,
 
-		TxnReceiptUnavailable
+		TxnReceiptUnavailable,
+
+		FailedToDepositFeesToAccount,
+
+		ParaAccountNotFound
 		
 	}
 

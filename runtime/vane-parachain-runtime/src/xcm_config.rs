@@ -21,7 +21,7 @@ use sp_runtime::traits::{CheckedConversion, Convert};
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
-	pub const RelayNetwork: Option<NetworkId> = None;
+	pub const RelayNetwork: Option<NetworkId> = Some(NetworkId::Rococo);
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	pub UniversalLocation: InteriorMultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
 }

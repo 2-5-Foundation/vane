@@ -1,0 +1,32 @@
+{
+   "$schema": "https://raw.githubusercontent.com/Moonsong-Labs/moonwall/main/packages/types/config_schema.json",
+   "label": "moonwall_config",
+   "defaultTestTimeout": 100000,
+   "environments": [
+      {
+         "name": "vane_para",
+         "envVars": ["DEBUG_COLORS=1"],
+         "testFileDir": ["suits/"],
+         "foundation": {
+            "type": "zombie",
+            "zombieSpec": {
+               "configPath": "../zombienet/vane.json"
+              
+           }
+         },
+         "connections": [
+            {
+                "name": "Rococo",
+                "type": "polkadotJs",
+                "endpoints": ["ws://127.0.0.1:8000"]
+            },
+            {
+                "name": "Vane_Para",
+                "type": "polkadotJs",
+                "endpoints": ["ws://127.0.0.1:9910"]
+            }
+           
+        ]
+      }
+   ]
+}

@@ -457,11 +457,14 @@ use super::*;
 				<Rococo as RococoPallet>::XcmPallet::reserve_transfer_assets(
 					alice_relay_origin,
 					bx!(vane_destination.into()),
-					bx!(AccountId32 { network: None, id: alice_account.into() }.into()),
+					bx!(AccountId32 { network: None, id: alice_account.clone().into() }.into()),
 					bx!((Here, amount).into()),
 					0,
 				)
 			);
+
+			let teste: MultiLocation = AccountId32 { network: None, id: alice_account.into() }.into();
+			println!("Account teste: {:?}",teste);
 
 
 			RococoPalletSystem::events().iter().for_each(|e| println!("{:#?} \n",e));

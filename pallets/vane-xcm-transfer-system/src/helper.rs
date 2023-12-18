@@ -34,7 +34,7 @@ pub use utils::*;
 pub mod utils {
 	use core::ops::Add;
 	use frame_support::parameter_types;
-	use sp_core::crypto::Ss58Codec;
+	use sp_core::{crypto::Ss58Codec, sr25519::Public};
 use sp_std::ops::{Mul, Sub};
 	use frame_system::{AccountInfo, RawOrigin};
 	use sp_runtime::traits::{TrailingZeroInput};
@@ -339,20 +339,20 @@ use sp_std::ops::{Mul, Sub};
 
 	pub trait UnknownAssetTrait {
 		/// Deposit unknown asset.
-		fn deposit(asset: &MultiAsset, to: &MultiLocation) -> DispatchResult;
+		fn deposit(asset: &MultiAsset, to: &MultiLocation) -> staging_xcm::v3::Result;
 	
 		/// Withdraw unknown asset.
-		fn withdraw(asset: &MultiAsset, from: &MultiLocation) -> DispatchResult;
+		fn withdraw(asset: &MultiAsset, from: &MultiLocation) -> staging_xcm::v3::Result;
 	}
 	
 	const NO_UNKNOWN_ASSET_IMPL: &str = "NoUnknownAssetImpl";
 	
 	impl UnknownAssetTrait for () {
-		fn deposit(_asset: &MultiAsset, _to: &MultiLocation) -> DispatchResult {
-			Err(DispatchError::Other(NO_UNKNOWN_ASSET_IMPL))
+		fn deposit(_asset: &MultiAsset, _to: &MultiLocation) -> staging_xcm::v3::Result {
+			Err(staging_xcm::v3::Error::Unimplemented)
 		}
-		fn withdraw(_asset: &MultiAsset, _from: &MultiLocation) -> DispatchResult {
-			Err(DispatchError::Other(NO_UNKNOWN_ASSET_IMPL))
+		fn withdraw(_asset: &MultiAsset, _from: &MultiLocation) -> staging_xcm::v3::Result {
+			Err(staging_xcm::v3::Error::Unimplemented)
 		}
 	}
 	
@@ -384,7 +384,7 @@ use sp_std::ops::{Mul, Sub};
 			MultiCurrency: VaneMultiCurrency<AccountId, CurrencyId = CurrencyId>,
 			UnknownAsset: UnknownAssetTrait,
 			Match: MatchesFungible<MultiCurrency::Balance>,
-			AccountId: Debug + Clone,
+			AccountId: Debug + Clone + From<[u8; 32]> + Into<[u8; 32]>,
 			AccountIdConvert: ConvertLocation<AccountId>,
 			CurrencyId: FullCodec + Eq + PartialEq + Copy + Debug,
 			CurrencyIdConvert: Convert<MultiAsset, Option<CurrencyId>>,
@@ -402,17 +402,49 @@ use sp_std::ops::{Mul, Sub};
 		>
 		{
 			fn deposit_asset(asset: &MultiAsset, location: &MultiLocation, context: &XcmContext) -> staging_xcm::v3::Result {
-				let sender = context.origin;
+				//let sender = context.origin;
+
+						//let sender = context.origin;
+						log::info!(
+							"MultiLocation: {:?} \n Multi Asset: {:?}",
+							location,asset
+						);
+
+		
+						let receiver =AccountIdConvert::convert_location(location);
+						let currency_id = CurrencyIdConvert::convert(asset.clone());
+						let amount = Match::matches_fungible(asset);
+		
+						log::info!(
+							"receiver: {:?} \n currency_id: {:?} \n amount: {:?}",
+							receiver,currency_id,amount
+						);
+
+						// Quick Fix for now
+						
+						let acc= match *location {
+							MultiLocation { parents: 0, interior: X1(AccountId32 { id, network: None }) } => id,
+							_ => unreachable!()
+						};
+
+						let cc = Public(acc);
+
+						log::info!(
+							"AccountConverted: {:?} ",
+							acc
+						);
+						
 				
 				match (
 					AccountIdConvert::convert_location(location),
 					CurrencyIdConvert::convert(asset.clone()),
 					Match::matches_fungible(asset),
 				) {
+					
 					// known asset
-					(Some(receiver), Some(currency_id), Some(amount)) => Ok(MultiCurrency::deposit(currency_id, &receiver, amount).unwrap()),// DepositFailAsset handler
+					(Some(receiver), Some(currency_id), Some(amount)) => Ok(MultiCurrency::deposit(currency_id, &receiver, amount).map_err(|_| staging_xcm::v3::Error::InvalidLocation)?),// DepositFailAsset handler
 					// unknown asset
-					_ => Ok(UnknownAsset::deposit(asset, location).unwrap()), // DepositFailAsset handler
+					_ => Ok(UnknownAsset::deposit(asset, location)?), // DepositFailAsset handler
 				}
 			}
 
@@ -507,6 +539,7 @@ use sp_std::ops::{Mul, Sub};
 		
 				// 1. Construct a multi id account
 				// send the funds from alice to the multi id account ( Alice, Bob)
+				//TBD
 		
 				let to_account = T::Lookup::unlookup(to.clone());
 				//<pallet_assets::Pallet<T>>::transfer(origin,currency_id,to.into(),amount)
@@ -514,14 +547,14 @@ use sp_std::ops::{Mul, Sub};
 					id: currency_id,
 					target: to_account,
 					amount,
-				}.dispatch_bypass_filter(oo).unwrap();
+				}.dispatch_bypass_filter(oo).unwrap(); // error handling
 
 				Ok(())
 
 			}
 
 
-			fn deposit(currency_id: Self::CurrencyId, receiver: &T::AccountId, amount: Self::Balance) -> Result<(),DispatchError> {
+			fn deposit(currency_id: Self::CurrencyId, receiver: &T::AccountId, amount: Self::Balance) -> DispatchResult {
 				
 
 				// Include neccessary fees 
@@ -536,8 +569,9 @@ use sp_std::ops::{Mul, Sub};
 				pallet_balances::Call::<T,()>::transfer_keep_alive {
 					dest: T::Lookup::unlookup(receiver.clone()), 
 					value: fees_amount 
-				}.dispatch_bypass_filter(para_account_origin).unwrap(); // Error handling
+				}.dispatch_bypass_filter(para_account_origin).map_err(|_| Error::<T>::FailedToDepositFeesToAccount)?; // Error handling
 
+				// Deposit using Pallet Asset deposit function
 				let _ = <pallet_assets::Pallet<T>>::deposit(currency_id.into(), receiver, amount, Precision::Exact)?;
 				Ok(())
 			}
@@ -715,7 +749,7 @@ use sp_std::ops::{Mul, Sub};
 			pallet_balances::Call::<T,()>::transfer_keep_alive {
 				dest: T::Lookup::unlookup(payee.clone()), 
 				value: fees_amount 
-			}.dispatch_bypass_filter(para_account_origin).unwrap();
+			}.dispatch_bypass_filter(para_account_origin).map_err(|_| Error::<T>::FailedToDepositFeesToAccount)?;
 
 
 			let time = <frame_system::Pallet<T>>::block_number();

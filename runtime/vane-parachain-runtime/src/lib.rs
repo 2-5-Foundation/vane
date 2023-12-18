@@ -7,7 +7,8 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 #[cfg(test)]
 mod xcm_eml_testing;
-
+#[cfg(test)]
+mod xcm_sim_testing;
 
 mod weights;
 pub mod xcm_config;
@@ -190,8 +191,8 @@ impl_opaque_keys! {
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("template-parachain"),
-	impl_name: create_runtime_str!("template-parachain"),
+	spec_name: create_runtime_str!("vane-parachain"),
+	impl_name: create_runtime_str!("vane-parachain"),
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 0,
