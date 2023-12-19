@@ -20,7 +20,7 @@
     "@openzeppelin/contracts": "4.9.3",
     "@polkadot/api": "10.11.1",
     "@polkadot/api-augment": "10.11.1",
-    "@polkadot/util": "12.6.1",
+    "@polkadot/util": "12.6.2",
     "@types/node": "20.10.3",
     "@vitest/ui": "1.0.1",
     "bun-types": "1.0.15",

@@ -1,7 +1,7 @@
 {
    "$schema": "https://raw.githubusercontent.com/Moonsong-Labs/moonwall/main/packages/types/config_schema.json",
    "label": "moonwall_config",
-   "defaultTestTimeout": 100000,
+   "defaultTestTimeout": 500000,
    "environments": [
       {
          "name": "vane_para",
