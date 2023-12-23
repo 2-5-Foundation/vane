@@ -1,0 +1,46 @@
+
+{
+  "settings": {
+      "timeout": 1000,
+      "provider": "native"
+  },
+  "relaychain": {
+      "chain": "rococo-local",
+      "default_command": "../../bin/polkadot",
+      "default_args": ["--no-hardware-benchmarks", "-lparachain=debug", "--database=paritydb"],
+      "nodes": [
+          {
+              "name": "alice",
+              "ws_port": "8000",
+              "validator": true
+          },
+          {
+              "name": "bob",
+              "ws_port": "8050",
+              "validator": true
+          }
+      ]
+  },
+  "parachains": [
+      {
+          "id": 2000,
+          "cumulus_based": true,
+          "onboard_as_parachain": true,
+          "collators": [
+            {
+            "name" :"vane-collator",
+	          "ws_port": 9910,
+	          "command":"../target/release/vane-node"
+            }
+                    
+          ]
+      }
+  ],
+  "types": {
+      "Header": {
+          "number": "u64",
+          "parent_hash": "Hash",
+          "post_state": "Hash"
+      }
+  }
+}

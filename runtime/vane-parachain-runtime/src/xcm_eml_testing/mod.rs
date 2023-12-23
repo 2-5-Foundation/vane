@@ -350,17 +350,17 @@ decl_test_networks!(
 );
 //
 //
-// static INIT: Once = Once::new();
-// pub fn init_tracing() {
-// 	INIT.call_once(|| {
-// 		// Add test tracing (from sp_tracing::init_for_tests()) but filtering for xcm logs only
-// 		let _ = tracing_subscriber::fmt()
-// 			//.with_max_level(tracing::Level::TRACE)
-// 			//.with_env_filter("xcm=trace,system::events=trace") // Comment out this line to see all traces
-// 			.with_test_writer()
-// 			.init();
-// 	});
-// }
+static INIT: Once = Once::new();
+pub fn init_tracing() {
+	INIT.call_once(|| {
+		// Add test tracing (from sp_tracing::init_for_tests()) but filtering for xcm logs only
+		let _ = tracing_subscriber::fmt()
+			.with_max_level(tracing::Level::TRACE)
+			.with_env_filter("xcm=trace") // Comment out this line to see all traces
+			//.with_test_writer()
+			.init();
+	});
+}
 //
 //
 // // Tests
@@ -400,17 +400,17 @@ decl_test_networks!(
 // 	}
 // }
 
-static INIT: Once = Once::new();
-fn init_tracing() {
-	INIT.call_once(|| {
-		// Add test tracing (from sp_tracing::init_for_tests()) but filtering for xcm logs only
-		let _ = tracing_subscriber::fmt()
-			.with_max_level(tracing::Level::TRACE)
-			.with_env_filter("xcm=trace,system::events=trace") // Comment out this line to see all traces
-			.with_test_writer()
-			.init();
-	});
-}
+// static INIT: Once = Once::new();
+// fn init_tracing() {
+// 	INIT.call_once(|| {
+// 		// Add test tracing (from sp_tracing::init_for_tests()) but filtering for xcm logs only
+// 		let _ = tracing_subscriber::fmt()
+// 			.with_max_level(tracing::Level::TRACE)
+// 			.with_env_filter("xcm=trace,system::events=trace") // Comment out this line to see all traces
+// 			.with_test_writer()
+// 			.init();
+// 	});
+// }
 
 #[cfg(test)]
 mod tests {
@@ -501,6 +501,21 @@ use super::*;
 	// This test checks reverting txn, sends xcm message to refund the tokens being held in vane soverign account.
 	#[test]
 	fn reverting_works(){
+
+	}
+
+
+	
+    //   		-------------------------------------------------------------
+	// Polkadot -  Alice ---------N Dots--------> Vane Sovereign Acc        -
+	//          -                                                           -
+	//          -------------------------------------------------------------
+
+
+
+	//  Send xcm message to vane parachain instructing to configure the state account for confirmation
+	#[test]
+	fn test_vane_2_logic_without_involving_token_bridging(){
 
 	}
 }

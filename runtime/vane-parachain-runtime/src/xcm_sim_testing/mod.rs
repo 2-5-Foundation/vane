@@ -475,7 +475,9 @@ use super::*;
 			assert_eq!(
 				relay_chain::Balances::free_balance(child_account_id(2000)),
 				10_010
-			)
+			);
+
+			println!("{:#}",child_account_id(2000))
 
 		});
 
